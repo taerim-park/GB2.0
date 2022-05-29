@@ -419,7 +419,7 @@ def get_status_data():
     solar, battery, vdd = status_conversion(solar, battery, vdd)
 
     status_data={}
-    status_data["timestamp"] = time_conversion( timestamp ) # board uptime 
+    status_data["Timestamp"] = time_conversion( timestamp ) # board uptime 
     status_data["resetFlag"] = status_data_i_got[5]  << 8  | status_data_i_got[4]   
     status_data["solar"]     = solar #
     status_data["battery"]   = battery #battery %
@@ -447,12 +447,6 @@ def do_command(command, param):
     elif command=="RESET":
         flag = False
     
-    # 'upload' doesn't reach here
-    #elif command=="UPLOAD":
-        '''
-        sending_data = json.dumps(data, ensure_ascii=False)
-        '''
-
     elif command=="CAPTURE":
         # CAPTURE 명령어를 받으면, 센서 데이터를 포함한 json file을 client에 넘깁니다.
         data = data_receiving()
@@ -478,7 +472,7 @@ def do_command(command, param):
         rcv = spi.xfer2(sending_config_data)
         ok_data = {"Status":"Ok"}
         sending_data = json.dumps(ok_data, ensure_ascii=False)
-        print('CONFIG returns ', sending_data)
+        #print('CONFIG returns ', sending_data)
     else:
         print('WRONG COMMAND: ', command)
         fail_data = {"Status":"False","Reason":"Wrong Command"}

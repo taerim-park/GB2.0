@@ -159,15 +159,22 @@ def report(aename, now):
     print(f'result= {r.text}')
     print(f'uploaded a file elapsed= {process_time()-point1:.1f}s')
 
-    print(f'removing {len(path_list)} files')
-    removed=""
-    for file in path_list:
-        if removed!="" and removed==file: 
-            print(f'skip dup remove {file}')
-            continue
+    s=0
+    f=0
+    f1=0 # 10개 화일이 연속 없으면 break
+    m1= 'ghost: '
+    for i in range(0, cmeasure['measureperiod']): # 10분간 기간
+        fname = datetime.strftime(now - timedelta(seconds=i), "%Y-%m-%d-%H%M%S")
         try:
-            os.remove(file) # 삭제할 파일이 존재하는 경우 삭제를 수행(에러 방지)
-            removed=file
+            os.remove(f'{raw_path}/{fname}')
+            s +=1
+            f1=0
         except:
-            print(f'failed in removing {file}')
-
+            m1 += f' {fname}'
+            f += 1
+            f1+=1
+        if f1>10: 
+            print('more than 10 sequence of ghost files, breaking...')
+            break
+    print(m1)
+    print(f'removed real {s}, ghost {f} files')

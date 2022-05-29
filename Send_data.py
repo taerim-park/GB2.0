@@ -4,6 +4,7 @@ print('\n===========')
 print(f'Verion {VERSION}')
 
 import os
+import json
 from RepeatedTimer import RepeatedTimer
 
 import process_raw_files
@@ -45,6 +46,16 @@ def do_periodic_data(aename):
     global ae, mm_old, hh_old, root, next, myclock_ok, myclock
     myclock += timedelta(seconds=1)
     cmeasure=ae[aename]['config']['cmeasure']
+
+    try: 
+        with open(f"{root}/measureperiod.json") as f:
+            j=json.load(f)
+        if aename in j:
+            cmeasure['measureperiod']=j[aename]
+            print(f"set new measureperiod for {aename} {j[aename]}")
+            os.remove(f"{root}/measureperiod.json")
+    except:
+        pass
 
     if ae[aename]['local']['measurestart']=='N':  # measure is controlled from remote user
         print('measurestart==N, skip periodic data sending')

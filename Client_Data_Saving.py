@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='2-2_20220522_2330'
+VERSION='20220530_0300'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -25,13 +25,10 @@ from paho.mqtt import client as mqtt
 from events import Events
 from RepeatedTimer import RepeatedTimer
 
-import versionup
-import create  #for Mobius resource
 import conf
-
-import Send_data
-import Send_state
-
+import create  #for Mobius resource
+import versionup
+import process_state
 import make_oneM2M_resource
 
 broker = conf.host
@@ -41,10 +38,10 @@ ae = conf.ae
 supported_sensors = conf.supported_sensors
 
 root=conf.root
-do_trigger=""
-do_trigger_param={}
-do_status=""
-do_status_param=""
+schedule={
+    #'config':{},
+    #'status':{}
+}
 
 TOPIC_callback=f'/oneM2M/req/{csename}/#'
 TOPIC_response=f'/oneM2M/resp/{csename}'
@@ -140,7 +137,7 @@ def save_conf():
     print(f"wrote config.dat")
 
 def do_user_command(aename, jcmd):
-    global ae, do_trigger, do_trigger_param, do_status, do_status_param
+    global ae, schedule, root
     cmd=jcmd['cmd']
     if 'reset' in cmd:
         file=f"{root}/config.dat"
@@ -164,24 +161,34 @@ def do_user_command(aename, jcmd):
         print('stop mqtt real tx')
         ae[aename]['local']['realstart']='N'
     elif cmd in {'reqstate'}:
-        do_status="goandshoot"
-        do_status_param=aename
-    elif cmd in {'settrigger'}:
-        print(f'set ctrigger= {jcmd["ctrigger"]}')
-        for x in jcmd["ctrigger"]:
-            ae[aename]["config"]["ctrigger"][x]= jcmd["ctrigger"][x]
+        # 얘는 board에서 읽어오는 부분이있다. 
+        #do_capture('STATUS')
+        schedule['status']={'ci':aename}
+        print(f"schedule do_capture({schedule['status']})")
+    elif cmd in {'settrigger', 'setmeasure'}:
+        ckey = cmd.replace('set','c')  # ctrigger, cmeasure
+        for x in jcmd[ckey]: ae[aename]["config"][ckey][x]= jcmd[ckey][x]
 
-        #do_config(aename)
-        do_trigger = do_config
-        do_trigger_param={"aename":aename, "save":'save', "cmd":cmd}
-    elif cmd in {'setmeasure'}:
-        print(f'set cmeasure= {jcmd["cmeasure"]}')
-        for x in jcmd["cmeasure"]:
-            ae[aename]["config"]["cmeasure"][x]= jcmd["cmeasure"][x]
-        save_conf()
-        if "measureperiod" in jcmd["cmeasure"]: os.system('pm2 restart Send_data')
-        if "stateperiod" in jcmd["cmeasure"]: os.system('pm2 restart Send_state')
-        if "rawperiod" in jcmd["cmeasure"]: os.system('pm2 restart Send_file')
+        if 'stateperiod' in jcmd[ckey]:
+            RepeatedTimer(ae[aename]['config']['cmeasure']['stateperiod']*60, do_periodic_state)
+            print(f"new stateperiod= {ae[aename]['config']['cmeasure']['stateperiod']}m")
+        if ckey=='cmeasure' and 'measureperiod' in jcmd[ckey]:
+            with open(f"{root}/measureperiod.json", 'w') as f: 
+                d1={aename:ae[aename]["config"][ckey]['measureperiod']}
+                json.dump(d1,f)
+                print(f"new measureperiod= {d1}")
+
+        setboard=False
+        if ckey=='cmeasure' and 'offset' in jcmd[ckey]: setboard=True
+        if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd[ckey].keys()) !=0: setboard=True
+        if setboard:
+            # 얘는 board에 설정하는 부분이 있다.
+            #do_config(aename)
+            schedule['config']={"aename":aename, "save":'save', "config":ckey}
+            print(f"schedule settrigger {schedule['config']}")
+                #do_config(schedule['config'])
+        else:
+            print(f"config done without setting board")
     elif cmd in {'settime'}:
         print(f'set time= {jcmd["time"]}')
         ae[aename]["config"]["time"]= jcmd["time"]
@@ -196,19 +203,12 @@ def do_user_command(aename, jcmd):
         ae[aename]['local']['measurestart']='Y'
         print(f"set measurestart= {ae[aename]['local']['measurestart']}")
         save_conf()
-        os.system('pm2 restart Send_data')
     elif cmd in {'measurestop'}:
         ae[aename]['local']['measurestart']='N'
         print(f"set measurestart= {ae[aename]['local']['measurestart']}")
         save_conf()
-        os.system('pm2 restart Send_data')
-    elif cmd == 'inoon':
-        cmd2=jcmd['cmd2']
-        if cmd2=='data': Send_data.do_periodic_data(aename)
-        elif cmd2=='file': Send_file.do_periodic_file(aename)
-        elif cmd2=='state': Send_state.do_periodic_state(aename)
-        else:
-            print(f'invalid cmd  {jcmd}')
+    #elif cmd == 'inoon':
+    #   cmd2=jcmd['cmd2']
     else:
         print(f'invalid cmd {jcmd}')
         
@@ -307,8 +307,10 @@ def do_config(param):
     global ae
 
     aename=param["aename"]
-    cmd=param["cmd"]
+    config=param["config"]
     save=param["save"]
+
+    print(f'do_config({param})')
 
     setting={ 'AC':{'select':0x0100,'use':'N','st1high':0,'st1low':0, 'offset':0},
                 'DI':{'select':0x0800,'use':'N','st1high':0,'st1low':0, 'offset':0},
@@ -321,12 +323,12 @@ def do_config(param):
         ctrigger = ae[aename]['config']['ctrigger']
         if 'use' in ctrigger:
             setting[sensor_type(aename)]['use'] = ctrigger['use']
-            if 'st1high' in ctrigger: setting[sensor_type(aename)]['st1high']= int(ctrigger['st1high'])
-            if 'st1low' in ctrigger: setting[sensor_type(aename)]['st1low']= int(ctrigger['st1low'])
-
-    print(f"do_config seting= {setting}")
+            if 'st1high' in ctrigger: setting[sensor_type(aename)]['st1high']= ctrigger['st1high']
+            if 'st1low' in ctrigger: setting[sensor_type(aename)]['st1low']= ctrigger['st1low']
+    #print(f"do_config board seting= {setting}")
 
     if connect() == 'no': 
+        print('do_config: connect() failed. return.')
         return
     try:
         client_socket.sendall(("CONFIG"+json.dumps(setting, ensure_ascii=False)).encode())
@@ -334,7 +336,6 @@ def do_config(param):
     except OSError as msg:
         print(f"socket error {msg} exiting..")
         os._exit(0)
-
 
     rData = rData.decode('utf_8')
     jsonData = json.loads(rData) # jsonData : 서버로부터 받은 json file을 dict 형식으로 변환한 것
@@ -346,13 +347,9 @@ def do_config(param):
         create.ci(aename, 'state','')
         return
 
-
     if save=='save':
         print(f'do_config: got result {jsonData}')
-        if cmd in {'ctrigger', 'cmeasure'}:
-            create.ci(aename, 'config', cmd)
-        elif cmd == 'settime':
-            create.ci(aename, 'config', 'time')
+        if config in {'ctrigger', 'cmeasure'}: create.ci(aename, 'config', config)
         save_conf()
 
 def do_trigger_followup(aename):
@@ -463,13 +460,16 @@ def do_capture(target):
         return
 
     if 'Timestamp' not in j:
-        print(f'found no Timestamp {j} at {now.strftime("%H:%M:%S")}')
+        if j['Status']!='Ok':
+            print(f'no Timestamp but got Ok {j} at {now.strftime("%H:%M:%S")}')
+        else:
+            print(f'no Timestamp {j} at {now.strftime("%H:%M:%S")}')
         return
 
     if target == 'STATUS':
         with open('state.json', 'w') as f:
             json.dump(j, f)
-        print(f'saved status= {j}')
+            print(f'saved status= {j}')
         return
 
 
@@ -664,30 +664,27 @@ def do_capture(target):
     #print(f'CAPTURE {now.strftime("%H:%M:%S:%f")} capture,process={(t2_start-t1_start)*1000:.1f}+{(process_time()-t2_start)*1000:.1f}ms got {len(rData)}B {rData[:50]} ...')
 
 def do_tick():
-    global do_trigger, do_trigger_param, do_status, do_status_param
+    global schedule
     do_capture('CAPTURE')
-    if not do_trigger=="":
-        print('do_trigger')
-        do_trigger(do_trigger_param)
-        do_trigger=""
-    if not do_status=="":
+
+    if 'config' in schedule: 
+        do_config(schedule['config'])
+        del schedule['config']
+
+    elif 'status' in schedule:
         do_capture('STATUS')
-        if do_status=='go': 
-            do_status=""
-            return
+        if 'ci' in schedule['status']:
+            process_state.report(schedule['status']['ci'])
+        del schedule['status']
+        
 
-        print(f"reqstate create state ci for {do_status_param}")
-        if do_status_param == "":
-            print('PANIC... do_status_param==null')
-        else:
-            periodic_state.update(do_status_param)
-        do_status = ''
-        do_status_param=''
+def do_periodic_state():
+    global schedule
+    if 'status' in schedule:
+        print('do_periodic_state ovrn. skip')
+        return
 
-def do_periodic_status():
-    global do_status, do_status_param
-    do_status = 'go' 
-    do_status_param=""
+    del schedule['status']
 
 
 def startup():
@@ -696,8 +693,8 @@ def startup():
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'})
-        do_config({'aename':aename, 'cmd':'','save':'nosave'})
-        RepeatedTimer(ae[aename]['config']['cmeasure']['stateperiod']*60, do_periodic_status)
+        do_config({'aename':aename, 'config':'','save':'nosave'})
+        RepeatedTimer(ae[aename]['config']['cmeasure']['stateperiod']*60, do_periodic_state)
 
 
 print('Ready')
