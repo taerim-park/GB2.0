@@ -14,6 +14,7 @@ root = conf.root
 
 next={}
 mm_old='00'
+hh_old='00'
 myclock=''
 myclock_ok=False
 
@@ -38,7 +39,7 @@ def sigint_handler(signal, frame):
 signal.signal(signal.SIGINT, sigint_handler)
 
 def do_periodic_state(aename):
-    global ae, mm_old, next, myclock, myclock_ok
+    global ae, mm_old, hh_old, next, myclock, myclock_ok
     myclock += timedelta(seconds=1)
     cmeasure=ae[aename]['config']['cmeasure']
     #print(now)
@@ -63,10 +64,10 @@ def do_periodic_state(aename):
         print(f'set next state {next[aename]}')
         myclock_ok=clock()
     else:
-        if hhmmss[2:4]!=mm_old:
+        if hhmmss[0:2]!=hh_old:
             if aename in next: print(f"board_time= {datetime.strftime(myclock, '%H:%M:%S')} +{(next[aename]-myclock).total_seconds()}s to next run")
             else: print(f"board_time= {datetime.strftime(myclock, '%H:%M:%S')}")
-    mm_old=hhmmss[2:4]
+    hh_old=hhmmss[0:2]
 
 #복수개 AE는 아래부분에서 완결
 def run():

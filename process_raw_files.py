@@ -98,7 +98,7 @@ def report(aename, now):
             if missing>10:
                 print('too many missing files. Do as it is')
                 break
-    start_time = datetime.strftime(now - timedelta(seconds=599), "%Y-%m-%d %H:%M:%S.%f")
+        start_time = datetime.strftime(now - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
     print(f"done making file list {start_time} {now}  elapsed= {process_time()-point1:.1f}")
 
     #print(f'found {len(path_list)} 1s files')
@@ -162,7 +162,9 @@ def report(aename, now):
     print(f'removing {len(path_list)} files')
     removed=""
     for file in path_list:
-        if removed!="" and removed==file: continue
+        if removed!="" and removed==file: 
+            print(f'skip dup remove {file}')
+            continue
         try:
             os.remove(file) # 삭제할 파일이 존재하는 경우 삭제를 수행(에러 방지)
             removed=file

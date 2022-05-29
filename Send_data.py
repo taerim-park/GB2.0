@@ -38,10 +38,11 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 next={}
 mm_old='00'
+hh_old='00'
 
 # handles periodic measure and fft
 def do_periodic_data(aename):
-    global ae, mm_old, root, next, myclock_ok, myclock
+    global ae, mm_old, hh_old, root, next, myclock_ok, myclock
     myclock += timedelta(seconds=1)
     cmeasure=ae[aename]['config']['cmeasure']
 
@@ -71,10 +72,10 @@ def do_periodic_data(aename):
         print(f'set next measure {next[aename]}')
         myclock_ok=clock()
     else:
-        if hhmmss[2:4]!=mm_old:
+        if hhmmss[0:2]!=hh_old:
             if aename in next: print(f"board_time= {datetime.strftime(myclock, '%H:%M:%S')} +{(next[aename]-myclock).total_seconds():.1f}s to next run")
             else: print(f"board_time= {datetime.strftime(myclock, '%H:%M:%S')}")
-    mm_old=hhmmss[2:4]
+    hh_old=hhmmss[0:2]
             
     
 #복수개 AE는 아래부분에서 완결

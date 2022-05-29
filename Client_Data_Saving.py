@@ -405,7 +405,12 @@ def do_trigger_followup(aename):
             else: data.append(one_file["data"])
 
     dtrigger['count']=len(data)
-    dtrigger['data']=data
+    i=0
+    dtrigger['data']='mobius can handle up to 6500 items. so data0, data1 are provided'
+    for i in range(len(data)):
+        if i*5000+5000>len(data): break
+        dtrigger[f'data{i}']=data[i*5000:i*5000+5000]
+    dtrigger[f'data{i}']=data[i*5000:]
     dtrigger["start"] = start
     create.ci(aename, 'data', 'dtrigger')
     print(f"comiled trigger data: {len(data)} bytes for bfsec+afsec= {ctrigger['bfsec']+ctrigger['afsec']}")
@@ -473,7 +478,8 @@ def do_capture(target):
     btime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S.%f')
     with open('board_time.json','w') as f: f.write(j['Timestamp']) 
     if btime_old != "":
-        print(f'Got new data {btime.strftime("%H:%M:%S.%f")} +{(btime - btime_old).total_seconds()}', end='')
+        #print(f'Got new data {btime.strftime("%H:%M:%S.%f")} +{(btime - btime_old).total_seconds()}', end='')
+        pass
     btime_old = btime
     #print(f"trigger= {j['trigger']}")
 
