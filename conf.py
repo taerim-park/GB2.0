@@ -29,18 +29,19 @@ make_ae(F'ae.{bridge}-AC_S1M_02_X', csename, install, connect)
 #make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
 
 root='/home/pi/GB'
-if os.path.exists(F"{root}/config.dat"): 
-    print('read from config.dat')
-    with open(F"{root}/config.dat") as f:
-        try:
-            ae = json.load(f)
-        except ValueError as e:
-            print(e)
-            print('wrong config.dat')
-else:
-    print('read from conf.py')
+for aename in ae:
+    if os.path.exists(F"{root}/{aename}.conf"): 
+        print('read from {aename}.conf')
+        with open(F"{root}/{aename}.conf") as f:
+            try:
+                ae = json.load(f)
+            except ValueError as e:
+                print(e)
+                print(f'wrong {aename}.conf')
+    else:
+        print(f'read from conf.py')
 
-print(f'read {list(ae.keys())}')
+memory={}
 
 if __name__ == "__main__":
     print(ae)

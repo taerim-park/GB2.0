@@ -28,20 +28,26 @@ from RepeatedTimer import RepeatedTimer
 import conf
 import create  #for Mobius resource
 import versionup
-import process_state
 import make_oneM2M_resource
+import savedData
+import state
 
 broker = conf.host
 port = conf.port
 csename = conf.csename
+memory=conf.memory
 ae = conf.ae
 supported_sensors = conf.supported_sensors
 
+# head insert point  tail removing point
+
 root=conf.root
-schedule={
-    #'config':{},
-    #'status':{}
-}
+schedule={}
+    # schedule{aename: {   
+        #'config':{},
+        #'status':{}
+        #'measure':{}
+    # }
 
 TOPIC_callback=f'/oneM2M/req/{csename}/#'
 TOPIC_response=f'/oneM2M/resp/{csename}'
@@ -53,8 +59,8 @@ command=""
 trigger_activated={}
 
 # single value for all ae
-btime=''
-btime_old=''
+boardTime=''
+gotBoardTime = False
 
 # 다중 데이터의 경우, 어떤 data를 저장할지 결정해야한다
 acc_axis = "x" # x, y, z중 택1
@@ -117,35 +123,48 @@ def jsonCreate(dataType, timeData, realData):
 # 받은 dict를 json으로 변환한 후, 지정된 path에 저장합니다.
 # 파일명은 기본적으로 날짜
 
-old_time=""
-def jsonSave(path, jsonFile):
-    global old_time
-    now = datetime.strptime(jsonFile['time'],'%Y-%m-%d %H:%M:%S.%f')
-    now_file = f"{path}/{now.strftime('%Y-%m-%d-%H%M%S')}"
-    with open(now_file, 'w') as f:
-        json.dump(jsonFile, f, indent=4)
-    now_time = datetime.strptime(datetime.strftime(now, '%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S')
-    if old_time != "":
-        if (now_time - old_time).total_seconds()>1.9:
-            print(f'fyi, missing second slot {old_time} {now_time}')
-    old_time=now_time
-    
+def jsonSave(aename, jsonFile):
+    global memory
+    mymemory = memory[aename]
+    # remove microsec 2022-05-30 03:20:01.477113
+    now_time = datetime.strptime(jsonFile['time'].split('.')[0],'%Y-%m-%d %H:%M:%S')
+    if mymemory["head"] == "": 
+        mymemory["head"] = now_time - timedelta(seconds=1)
+        mymemory["tail"]= now_time
 
-def save_conf():
-    with open(F"{root}/config.dat","w") as f:
-        f.write(json.dumps(ae, ensure_ascii=False,indent=4))
-    print(f"wrote config.dat")
+    sec = int((now_time - mymemory["head"]).total_seconds())
+    if sec>10:
+        print(f'sec too big {sec} limiting to 10')
+        sec=10
+    while sec>0:
+        mymemory["head"] = mymemory["head"] + timedelta(seconds=1)
+        mymemory["file"][mymemory["head"].strftime('%Y-%m-%d-%H%M%S')]=jsonFile
+        if sec>1: print(f'json add {mymemory["head"]} len= {len(mymemory["file"])} extra')
+        else: 
+            if len(mymemory["file"])%15 ==0: print(f'json add {mymemory["head"]} len= {len(mymemory["file"])}')
+        sec -= 1
+    
+    while len(mymemory["file"])>600:
+        print(f'removing extra json > 600  {mymemory["tail"]}')
+        del mymemory["file"][mymemory["tail"].strftime('%Y-%m-%d-%H%M%S')]
+        mymemory["tail"] = mymemory["tail"] + timedelta(seconds=1)
+
+
+def save_conf(aename):
+    global ae
+    with open(F"{root}/{aename}.conf","w") as f: f.write(json.dumps(ae[aename], ensure_ascii=False,indent=4))
+    print(f"wrote {aename}.conf")
 
 def do_user_command(aename, jcmd):
     global ae, schedule, root
     cmd=jcmd['cmd']
     if 'reset' in cmd:
-        file=f"{root}/config.dat"
+        file=f"{root}/{aename}.conf"
         if os.path.exists(file): 
             os.remove(file)
-            print(f'removed {file}')
+            print(f'removed {aename}.conf')
         else:
-            print(f'no {file} to delete')
+            print(f'no {aename}.conf to delete')
         os.system("sudo reboot")
     elif 'reboot' in cmd:
         os.system("sudo reboot")
@@ -163,50 +182,48 @@ def do_user_command(aename, jcmd):
     elif cmd in {'reqstate'}:
         # 얘는 board에서 읽어오는 부분이있다. 
         #do_capture('STATUS')
-        schedule['status']={'ci':aename}
-        print(f"schedule do_capture({schedule['status']})")
+        schedule[aename]['reqstate']=aename
+        print(f"schedule do_capture({aename}:{schedule[aename]})")
     elif cmd in {'settrigger', 'setmeasure'}:
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
         for x in jcmd[ckey]: ae[aename]["config"][ckey][x]= jcmd[ckey][x]
 
-        if 'stateperiod' in jcmd[ckey]:
-            RepeatedTimer(ae[aename]['config']['cmeasure']['stateperiod']*60, do_periodic_state)
+        if ckey=='cmeasure' and 'stateperiod' in jcmd[ckey]:
+            ae[aename]['config']['cmeasure']['stateperiod'] = jcmd[ckey][x]
             print(f"new stateperiod= {ae[aename]['config']['cmeasure']['stateperiod']}m")
         if ckey=='cmeasure' and 'measureperiod' in jcmd[ckey]:
-            with open(f"{root}/measureperiod.json", 'w') as f: 
-                d1={aename:ae[aename]["config"][ckey]['measureperiod']}
-                json.dump(d1,f)
-                print(f"new measureperiod= {d1}")
-
+            ae[aename]['config']['cmeasure']['measureperiod'] = jcmd[ckey][x]
+            print(f"new measureperiod= {ae[aename]['config']['cmeasure']['measureperiod']}s")
         setboard=False
         if ckey=='cmeasure' and 'offset' in jcmd[ckey]: setboard=True
         if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd[ckey].keys()) !=0: setboard=True
         if setboard:
             # 얘는 board에 설정하는 부분이 있다.
             #do_config(aename)
-            schedule['config']={"aename":aename, "save":'save', "config":ckey}
-            print(f"schedule settrigger {schedule['config']}")
-                #do_config(schedule['config'])
+            schedule[aename]['config']=ckey
+            schedule[aename]['save']='save'
+            print(f"schedule settrigger {aename} {schedule[aename]}")
+                #do_config(schedule[aename]['config'])
         else:
             print(f"config done without setting board")
     elif cmd in {'settime'}:
         print(f'set time= {jcmd["time"]}')
         ae[aename]["config"]["time"]= jcmd["time"]
-        save_conf()
+        save_conf(aename)
     elif cmd in {'setconnect'}:
         print(f'set {aename}/connect= {jcmd["connect"]}')
         for x in jcmd["connect"]:
             ae[aename]["connect"][x]=jcmd["connect"][x]
         create.ci(aename, 'config', 'connect')
-        save_conf()
+        save_conf(aename)
     elif cmd in {'measurestart'}:
         ae[aename]['local']['measurestart']='Y'
         print(f"set measurestart= {ae[aename]['local']['measurestart']}")
-        save_conf()
+        save_conf(aename)
     elif cmd in {'measurestop'}:
         ae[aename]['local']['measurestart']='N'
         print(f"set measurestart= {ae[aename]['local']['measurestart']}")
-        save_conf()
+        save_conf(aename)
     #elif cmd == 'inoon':
     #   cmd2=jcmd['cmd2']
     else:
@@ -350,7 +367,7 @@ def do_config(param):
     if save=='save':
         print(f'do_config: got result {jsonData}')
         if config in {'ctrigger', 'cmeasure'}: create.ci(aename, 'config', config)
-        save_conf()
+        save_conf(aename)
 
 def do_trigger_followup(aename):
     global ae,root,path
@@ -360,46 +377,22 @@ def do_trigger_followup(aename):
     ctrigger = ae[aename]['config']['ctrigger']
     stype = sensor_type(aename)
     trigger= datetime.strptime(dtrigger['time'],'%Y-%m-%d %H:%M:%S.%f')
-    raw_path = F"{root}/raw_data/{stype}"
+    mymemory=memory[aename]
 
-    data_path_list = list()
-    j=0
-    for i in range(0,ctrigger['bfsec']+10):
-        fname = datetime.strftime(trigger - timedelta(seconds=i), "%Y-%m-%d-%H%M%S")
-        if os.path.exists(f'{raw_path}/{fname}'):
-            #print(f'file ok -{i} {raw_path}/{fname}')
-            data_path_list.append(f'{raw_path}/{fname}')
-            j +=1
-            start = datetime.strftime(trigger - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
-            if j>= ctrigger['bfsec']:
-                #print(f"done i= {i} bfsec= {ctrigger['bfsec']}")
-                start = datetime.strftime(trigger - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
-                break;
-        else:
-            print(f'skip missing file -{i} {raw_path}/{fname}')
-    j=0
-    for i in range(1, ctrigger['afsec']+10):
-        fname = datetime.strftime(trigger + timedelta(seconds=i), "%Y-%m-%d-%H%M%S")
-        if os.path.exists(f'{raw_path}/{fname}'):
-            #print(f'file ok +{i} {fname}')
-            data_path_list.append(f'{raw_path}/{fname}')
-            j+=1
-        else:
-            print(f'skip missing file +{i} {raw_path}/{fname}')
-        if j>= ctrigger['afsec']:
-            #print(f"done afsec= {ctrigger['afsec']}")
-            break;
-    #print(f'found {len(data_path_list)} files')
-    data_path_list.sort()
-
-    # path에 존재하는 모든 data를 열어보고, 보낼 데이터 list를 작성한다.
-    # 정렬된 data_path_list가 들어오기 때문에, 가장 처음 들어오는 데이터가 가장 오래된 데이터. 즉, start data이다.
     data = list()
-    for file in range(len(data_path_list)):
-        with open(data_path_list[file], "rb") as f:
-            one_file = json.load(f)
-            if isinstance(one_file['data'], list): data.extend(one_file["data"])
-            else: data.append(one_file["data"])
+    start=""
+    for i in range(-ctrigger['bfsec'],ctrigger['afsec']):
+        key = datetime.strftime(trigger + timedelta(seconds=i), "%Y-%m-%d-%H%M%S")
+        try:
+            json_data = mymemory["file"][key]
+            start=datetime.strftime(trigger + timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
+        except:
+            print(f' skip i={i}', end='')
+            continue
+        if isinstance(json_data['data'], list): data.extend(json_data["data"])
+        else: data.append(json_data["data"]) 
+    
+    #print(f'found {len(data_path_list)} files')
 
     dtrigger['count']=len(data)
     i=0
@@ -426,7 +419,7 @@ def do_capture(target):
     global client_socket, mqtt_measure, time_old
     global trigger_activated, session_active
     global ae #samplerate 조정을 위한 값. 동적 데이터에만 적용되는 것으로 한다
-    global btime, btime_old
+    global boardTime, gotBoardTime
 
     t1_start=process_time()
     #print('do capture')
@@ -467,20 +460,18 @@ def do_capture(target):
         return
 
     if target == 'STATUS':
-        with open('state.json', 'w') as f:
-            json.dump(j, f)
-            print(f'saved status= {j}')
+        statusJson=j
         return
 
 
     #else target == 'CAPTURE'    
     #print('got=',j)
-    btime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S.%f')
-    with open('board_time.json','w') as f: f.write(j['Timestamp']) 
-    if btime_old != "":
-        #print(f'Got new data {btime.strftime("%H:%M:%S.%f")} +{(btime - btime_old).total_seconds()}', end='')
-        pass
-    btime_old = btime
+
+    boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S.%f')
+    if not gotBoardTime:
+        gotBoardTime = True
+        schedule_first()
+
     #print(f"trigger= {j['trigger']}")
 
     for aename in ae:
@@ -658,34 +649,32 @@ def do_capture(target):
     # 내 ae에 지정된 sensor type정보만을 저장
     for aename in ae:
         stype = sensor_type(aename)
-        jsonSave(F"{root}/raw_data/{stype}", raw_json[stype])
+        jsonSave(aename, raw_json[stype])
         #if stype == 'AC': print(f"saved {stype} {len(raw_json[stype]['data'])} data")
 
-    #print(f'CAPTURE {now.strftime("%H:%M:%S:%f")} capture,process={(t2_start-t1_start)*1000:.1f}+{(process_time()-t2_start)*1000:.1f}ms got {len(rData)}B {rData[:50]} ...')
+        if schedule[aename]['measure'] < boardTime:
+            savedData.savedJson(aename,  schedule[aename]['measure'])
+            schedule_measureperiod()
 
 def do_tick():
-    global schedule
+    global schedule, boardTime
     do_capture('CAPTURE')
 
-    if 'config' in schedule: 
-        do_config(schedule['config'])
-        del schedule['config']
 
-    elif 'status' in schedule:
-        do_capture('STATUS')
-        if 'ci' in schedule['status']:
-            process_state.report(schedule['status']['ci'])
-        del schedule['status']
+    for aename in schedule:
+        if 'config' in schedule[aename]: 
+            do_config(schedule[aename]['config'])
+            del schedule[aename]['config']
+
+        elif 'reqstate' in schedule[aename]:
+            do_capture('STATUS')
+            state.report(aename)
+            del schedule[aename]['reqstate']
+
+        if schedule[aename]['state'] < boardTime:
+            state.report(aename)
+            schedule_state()
         
-
-def do_periodic_state():
-    global schedule
-    if 'status' in schedule:
-        print('do_periodic_state ovrn. skip')
-        return
-
-    del schedule['status']
-
 
 def startup():
     global ae
@@ -693,8 +682,57 @@ def startup():
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'})
-        do_config({'aename':aename, 'config':'','save':'nosave'})
-        RepeatedTimer(ae[aename]['config']['cmeasure']['stateperiod']*60, do_periodic_state)
+
+    #this need once for one board
+    do_config({'aename':aename, 'config':'','save':'nosave'})
+
+
+# schedule measureperiod
+def schedule_measureperiod():
+    global ae, schedule, boardTime
+    for aename in ae:
+        cmeasure=ae[aename]['config']['cmeasure']
+
+        if not 'measureperiod' in cmeasure: cmeasure['measureperiod']=3600
+        elif not isinstance(cmeasure['measureperiod'],int): cmeasure['measureperiod']=3600
+        elif cmeasure['measureperiod']<600: cmeasure['measureperiod']=600
+        cmeasure['measureperiod'] = int(cmeasure['measureperiod']/600)*600
+        print(f"cmeasure.measureperiod= {cmeasure['measureperiod']} sec")
+    
+        cmeasure['rawperiod'] = int(cmeasure['measureperiod']/60)
+        print(f"cmeasure.rawperiod= {cmeasure['rawperiod']} min")
+
+        btime = boardTime+timedelta(seconds=cmeasure['measureperiod'])-timedelta(seconds=1)
+        schedule[aename]['measure']= btime
+        print(f'measure schedule[{aename}] at {btime}')
+
+def schedule_state():
+    global ae, schedule, boardTime
+    for aename in ae:
+        cmeasure=ae[aename]['config']['cmeasure']
+
+        if not 'stateperiod' in cmeasure: cmeasure['stateperiod']=60 #min
+        elif not isinstance(cmeasure['stateperiod'],int): cmeasure['stateperiod']=60
+        print(f"cmeasure.stateperiod= {cmeasure['stateperiod']} min")
+
+        btime = boardTime+timedelta(minutes=cmeasure['stateperiod']) -timedelta(seconds=1)
+        schedule[aename]['state']= btime
+        print(f'state schedule[{aename}] at {btime}')
+
+def schedule_first():
+    global ae, schedule, boardTime
+    for aename in ae:
+        #obtime = boardTime+timedelta(minutes=10)
+        obtime = boardTime+timedelta(minutes=1)
+        #btime = obtime[:15]+'0'+obtime[16:]
+        btime = obtime
+        schedule[aename]['measure']= btime
+        schedule[aename]['state']= btime
+        print(f'set first schedule for measure, state at {boardTime} -> {btime}')
+
+for aename in ae:
+    memory[aename]={"file":{}, "head":"","tail":""}
+    schedule[aename]={}
 
 
 print('Ready')
