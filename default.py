@@ -16,9 +16,9 @@ config_ctrigger["TI"]={"use":"N","mode":3,"st1high":5,"st1low":-5,"bfsec":0,"afs
 
 config_cmeasure={}
 config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'Y'}
-config_cmeasure['DI']={'sensitivity':24,'samplerate':"1",'usefft':'N'}
-config_cmeasure['TP']={'sensitivity':16,'samplerate':"1",'usefft':'N'}
-config_cmeasure['TI']={'sensitivity':20,'samplerate':"1",'usefft':'N'}
+config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N'}
+config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N'}
+config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N'}
 
 #                                    sec 600          min 60           min 60
 cmeasure2={'offset':0,'measureperiod':1200,'stateperiod':60,'rawperiod':60,
