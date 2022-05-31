@@ -218,6 +218,8 @@ def do_user_command(aename, jcmd):
             else:
                 v = jcmd[ckey][x]
             ae[aename]['config']['cmeasure']['measureperiod'] = v
+        if 'stateperiod' in jcmd[ckey]: 
+            ae[aename]['config']['cmeasure']['stateperiod'] = jcmd[ckey][x]
         setboard=False
         if ckey=='cmeasure' and 'offset' in jcmd[ckey]: setboard=True
         if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd[ckey].keys()) !=0: setboard=True
@@ -515,6 +517,9 @@ def do_capture(target):
     #print(f"trigger= {j['trigger']}")
 
     for aename in ae:
+        # skip if not measuring
+        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+
         ctrigger=ae[aename]['config']['ctrigger']
         cmeasure=ae[aename]['config']['cmeasure']
         dtrigger=ae[aename]['data']['dtrigger']
@@ -539,7 +544,7 @@ def do_capture(target):
             #print(f"{aename} use trigger= {ctrigger['use']}")
             continue
 
-        # new trigger
+
         if sensor_type(aename) == "AC": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
             trigger_list = j["AC"]
             trigger_data = "unknown"
@@ -616,6 +621,9 @@ def do_capture(target):
             os._exit(0)
 
         for aename in ae:
+            # skip if not measuring
+            if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+
             if schedule[aename]['measure'] < boardTime:
                 savedData.savedJson(aename,  schedule[aename]['measure'])
                 schedule_measureperiod(aename)
@@ -633,6 +641,9 @@ def do_capture(target):
     }
 
     for aename in ae:
+        # skip if not measuring
+        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+
         cmeasure=ae[aename]['config']['cmeasure']
         type = sensor_type(aename)
 
@@ -700,6 +711,9 @@ def do_capture(target):
     # mqtt 전송을 시행하기로 했다면 mqtt 전송 시행
     # 내 device의 ae에 지정된 sensor type 정보만을 전송
     for aename in ae:
+        # skip if not measuring
+        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+
         # stype 은 'AC' 와 같은 부분
         stype = sensor_type(aename)
         #print(f"mqtt {aename} {stype} {ae[aename]['local']['realstart']}")
@@ -714,8 +728,8 @@ def do_capture(target):
     # 센서별 json file 생성
     # 내 ae에 지정된 sensor type정보만을 저장
     for aename in ae:
-        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring':
-            continue
+        # skip if not measuring
+        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
 
         stype = sensor_type(aename)
         jsonSave(aename, raw_json[stype])
@@ -751,6 +765,7 @@ def startup():
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'})
+        schedule[aename]['reqstate']=aename
 
     #this need once for one board
     do_config({'aename':aename, 'config':'','save':'nosave'})
