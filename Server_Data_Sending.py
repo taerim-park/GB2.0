@@ -37,7 +37,6 @@ spi = spidev.SpiDev()
 spi.open(spi_bus, spi_device)
 spi.max_speed_hz = 100000 #100MHz
 
-console_msg=""
 #하드웨어 보드의 설정상태 저장
 board_setting = {} 
 
@@ -248,7 +247,6 @@ Offset={'AC':0,'DI':0,'TI':0,'TP':0}
 # 센서로부터 data bit를 받아, 그것을 적절한 int값으로 변환합니다.
 # return value는 모든 센서 데이터를 포함하고 있는 dictionary 데이터입니다.
 def data_receiving():
-    global console_msg
     global Offset
     #print("s:0x24")        # request header
     rcv1 = spi.xfer2([0x24])
@@ -270,11 +268,8 @@ def data_receiving():
         json_data["Timestamp"] = timestamp
         #print("trigger status : ", status_trigger_return(status)) #trigger 작동여부 출력 테스트 코드
         json_data["trigger"] = status_trigger_return(status)
-        console_msg = ""
     else:
         isReady = False
-        #console_msg += " ** device not ready"
-        console_msg = ""
         fail_data = {"Status":"False"}
         return fail_data
         
@@ -336,15 +331,13 @@ def data_receiving():
         s1 = 'trigger='
         for x in json_data['trigger']:
             if  json_data['trigger'][x]=='1': s1 += f' {x}:1'
-        if not s1 == 'trigger=':
-            console_msg += ' '+s1
         json_data["Status"]="Ok"
         return json_data
 
 def set_config_data(config_data):
     jdata = json.loads(config_data)
 
-    print(f'set_config {jdata}')
+    print(f'set_config {json.dumps(jdata, indent=4)}')
 
     global Offset
     # set offset, already defauled to 0
@@ -444,7 +437,7 @@ def do_command(command, param):
         ok_data = {"Status":"Ok"}
         sending_data = json.dumps(ok_data, ensure_ascii=False)
 
-    if command=="START":
+    elif command=="START":
         flag = False
     elif command == "STOP":
         flag = False
@@ -548,14 +541,5 @@ while(1) :
             continue
         session_active = True
 
-        now=datetime.now()
-        if cmd.startswith("CAPTURE"):
-            console_msg=f'{cmd} {now.strftime("%H:%M:%S")} +{(now-time_old).total_seconds():.1f}s'
-            time_old=now
-        else:
-            console_msg=f'{cmd} {now.strftime("%H:%M:%S")}'
+        if not cmd.startswith('CAPTURE'): print(f'got {cmd} at {datetime.now().strftime("%H:%M:%S")}')
         do_command(cmd, param)
-        if console_msg != "":
-            print(console_msg)
-
-

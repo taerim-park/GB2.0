@@ -14,9 +14,9 @@ host = conf.host
 port = conf.port
 csename = conf.csename
 ae = conf.ae
+slack = conf.slack
 
 root=conf.root
-slack=""
 
 def ci(aename, cnt, subcnt):
     global ae
@@ -39,7 +39,7 @@ def ci(aename, cnt, subcnt):
     else:
         url = F"http://{host}:7579/{csename}/{aename}/{cnt}"
         body["m2m:cin"]["con"] = ae[aename][cnt]
-    print(f'{url} {json.dumps(body)[:50]}...')
+    #print(f'{url} {json.dumps(body)[:50]}...')
     #print(f'{url}')
               
     gotok=False
@@ -51,33 +51,21 @@ def ci(aename, cnt, subcnt):
         else:
             if subcnt == "": x=''
             else: x=f'/{subcnt}'
-            print(f'  created ci {cnt}{x}/{r.json()["m2m:cin"]["rn"]} \n    ==> {json.dumps(r.json()["m2m:cin"]["con"])[:50]}...')
+            print(f'  created ci {aename}/{cnt}{x}/{r.json()["m2m:cin"]["rn"]} {json.dumps(r.json()["m2m:cin"]["con"])[:100]}...')
             gotok=True
     except requests.exceptions.RequestException as e:
         print(f'failed to ci {e}')
 
-
-    if gotok and os.path.exists('slackkey.txt'):
-        global slack
-        if slack=="":
-            with open("slackkey.txt") as f: slack=f.read()
-            print('activate slack alarm')
-        url2=f'http://damoa.io:8999/?msg=created {url}/{r.json()["m2m:cin"]["rn"]}&channel={slack}'
-        #print(url2)
-        try:
-            r = requests.get(url2)
-            print('sent slack')
-        except requests.exceptions.RequestException as e:
-            print(f'failed to slack {e}')
+    slack(aename, f'created {url}/{r.json()["m2m:cin"]["rn"]}')
 
 # (ae.323376-TP_A1_01_X, {'info','config'})
 def allci(aei, all):
     global ae
-    print(f'create ci for containers= {all}')
+    #print(f'create ci for containers= {all}')
     for cnti in ae[aei]:
         for subcnti in ae[aei][cnti]:
             if cnti in all:
-                print(f'{aei}/{cnti}/{subcnti}')
+                #print(f'{aei}/{cnti}/{subcnti}')
                 ci(aei, cnti, subcnti)
 
 if __name__== "__main__":

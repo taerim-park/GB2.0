@@ -76,20 +76,23 @@ def savedJson(aename, btime):
     print('measure time begin: 0')
     
     data_list = list()
-    recent_data = {}
+    #recent_data = {}  # bug..?
     print(f'{aename} processing {len(mymemory["file"])} records(sec)')
 
-    for i in range(0, 600): # 10분간 기간
+    for i in range(1, 601): # 10분간 기간
         key = (btime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
+        if i == 1: # 가장 최근 데이터를 뽑아낸다, i=0이 정시 boardData 를 처리하기전으로 수정
+            recent_data = mymemory["file"][key]
+        # 데이타가 600개가 되지 않을 경우도 있다. 그래서 계속 값지정. 마지막에 지정된 값이 시작시간이 된다.
+        start_time = datetime.strftime(btime - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
+
         if not key in mymemory["file"]:
             print(f'{aename} no key= {key} i= {i}')
             break
-        if i == 1: # 가장 최근 데이터를 뽑아낸다
-            recent_data = mymemory["file"][key]
         json_data = mymemory["file"][key]
         if isinstance(json_data['data'], list): data_list.extend(json_data["data"])
         else: data_list.append(json_data["data"])
-        start_time = datetime.strftime(btime - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
+
 
     if sensor_type(aename) == "AC" or sensor_type(aename) == "DS": # 동적 데이터의 경우
         print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
@@ -97,7 +100,7 @@ def savedJson(aename, btime):
         data_list_np = np.array(data_list)
         dmeasure = {}
         dmeasure['type'] = "D"
-        dmeasure['time'] = datetime.strftime(btime, '%Y-%m-%d %H:%M:%S.%f')
+        dmeasure['time'] = start_time   # spec에 의하면 10분 측정구간의 시작시간을 지정
         dmeasure['min'] = np.min(data_list_np)
         dmeasure['max']= np.max(data_list_np)
         dmeasure['avg'] = np.average(data_list_np)
@@ -111,7 +114,7 @@ def savedJson(aename, btime):
             if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
                 fft = {}
                 fft["start"]=start_time
-                fft["end"]=datetime.strftime(btime, '%Y-%m-%d %H:%M:%S.%f')
+                fft["end"]=recent_data['time']
                 fft["st1hz"]=hrz
                 ae[aename]['data']['fft']=fft
                 create.ci(aename, 'data', 'fft')
@@ -130,6 +133,7 @@ def savedJson(aename, btime):
         "count":len(data_list),
         "data":data_list
     }
+    # saved file의 이름은 끝나는 시간임
     file_name = f'{btime.strftime("%Y%m%d%H%M")}_{aename}'
     with open (F"{save_path}/{file_name}.bin", "w") as f:
         json.dump(merged_file, f, indent=4) # 통합 data 저장. 분단위까지 파일명에 기록됩니다

@@ -14,17 +14,17 @@ config_ctrigger["TI"]={"use":"N","mode":3,"st1high":5,"st1low":-5,"bfsec":0,"afs
 # saved for copy just in case
 #{"use":"Y","mode":1,"st1high":200,"st1low":-2000,"st2high":"","st2low":"","st3high":"","st4low":"","lt4high":"","st5low":"","st5high":"","st5low":"","bfsec":30,"afsec":60}
 
-config_cmeasure={}
-config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'Y'}
-config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N'}
-config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N'}
-config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N'}
+config_cmeasure={}                                                         #measuring  stopped   
+config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'Y','measurestate':'measuring'}
+config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
+config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
+config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
 
 #                                    sec 600          min 60           min 60
 cmeasure2={'offset':0,'measureperiod':1200,'stateperiod':60,'rawperiod':60,
         'st1min':2.1, 'st1max':2.6, 'st2min':3.01, 'st2max':4.01, 'st3min':5.01, 'st3max':6.01, 'st4min':7.01, 'st4max':8.01,
         'st5min':9.01, 'st5max':10.01, 'st6min':11.01, 'st6max':12.01, 'st7min':13.01, 'st7max':14.01, 'st8min':15.01, 'st8max':16.01,
-        'st9min':17.01, 'st9max':18.01, 'st10min':19.01, 'st10max':20.01}
+        'st9min':17.01, 'st9max':18.01, 'st10min':19.01, 'st10max':20.01,'formula':'센서값*Factor+Offset'}
 config_cmeasure['AC'].update(cmeasure2)  #deep copy
 config_cmeasure['DI'].update(cmeasure2)  #deep copy
 config_cmeasure['TP'].update(cmeasure2)  #deep copy
@@ -54,7 +54,7 @@ data_dmeasure={"type":"","time":"","temp":"","hum":"","val":"","min":"","max":""
 
 config_time={'zone':'GMT+9','mode':3,'ip':'time.nist.gov','port':80,'period':600} #600sec
 #state={'battery':4,'memory':10,'disk':10,'cpu':20,'time':'2022-05-16 09:01:01.0000','uptime':'0 days, 13:29:34','abflag':'N','abtime':'','abdesc':'','solarinputvolt':0,'solarinputamp':0,'solarchargevolt':0,'powersupply':0}
-state={'battery':4,'memory':10,'disk':10,'cpu':20,'time':'2022-05-16 09:01:01.0000','uptime':'0 days, 13:29:34','abflag':'N'}
+state={}
 
 ae={}
 TOPIC_list = {}
@@ -83,19 +83,11 @@ def make_ae(aename, csename, install, config_connect):
     ae[aename]['info']['install'].update(install)
     ae[aename]['info']['install']['sensorid']=sensor_id
     ae[aename]['info']['imeasure'].update(info_imeasure[sensor_type])
-    ae[aename]['state'].update(state)
     ae[aename]['data']['dtrigger'].update(data_dtrigger)
     ae[aename]['data']['fft'].update(data_fft)
     ae[aename]['data']['dmeasure'].update(data_dmeasure)
+    ae[aename]['local']={'printtick':'N', 'realstart':'Y', 'name':aename}
     TOPIC_list[aename]=F'/{csename}/{aename}/realtime'
-    ae[aename]['local']={'printtick':'N'}
-    if sensor_type in {'AC', 'DI', 'TI', 'TP', 'DS'}:   # 얘만 mqtt default 로  가동
-        ae[aename]['local']['realstart']='Y'
-        ae[aename]['local']['measurestart'] ='Y' 
-    else:
-        ae[aename]['local']['realstart']='N'
-        ae[aename]['local']['measurestart']='N'
-    ae[aename]['local']['name']=aename
 
 ctrl={'cmd':''}
 # 'reset','reboot  synctime','fwupdate','realstart','realstop','reqstate','settrigger','settime','setmeasure','setconnect','measurestart','meaurestop'
