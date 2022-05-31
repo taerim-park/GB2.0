@@ -486,12 +486,12 @@ def do_capture(target):
         print(f'got result {j}')
         return 
 
-    if j['Origin'] != 'CAPTURE' and j['Status'] != 'Ok':
-        print(f'got ERROR {j}')
+    if j['Origin'] != 'CAPTURE' and j['Status'] != 'False':
+        #print(f'device not ready {j}')
         return
 
     if not 'Timestamp' in j:
-        print(f'no Timestamp {j}')
+        print(f"no Timestamp {j} at {datetime.now().strftime('%H:%M:%S')}")
         return
 
     
