@@ -463,6 +463,7 @@ def do_capture(target):
     global boardTime, gotBoardTime
 
     t1_start=process_time()
+    t1_msg="0s"
     #print('do capture')
     if connect() == 'no':
         return
@@ -473,7 +474,6 @@ def do_capture(target):
         print(f"socket error {msg} exiting..")
         os._exit(0)
 
-    t2_start=process_time()
     rData = rData.decode('utf_8')
     try:
         j = json.loads(rData) # j : 서버로부터 받은 json file을 dict 형식으로 변환한 것
@@ -505,7 +505,7 @@ def do_capture(target):
             ae[aename]['state']['battery']=j['battery']
         return
 
-
+    t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
     #else target == 'CAPTURE'    
     #print('got=',j)
 
@@ -600,7 +600,7 @@ def do_capture(target):
             create.ci(aename, "data", "dtrigger") # 정적 트리거 전송은 따로 do_trigger_followup을 실행하지 않는다.
             print("sent trigger for {aename}")
 
-        
+    t1_msg += f' - doneTrigger - {process_time()-t1_start:.1f}s' 
 
     # end of trigger            
 
@@ -615,10 +615,24 @@ def do_capture(target):
             return
         try:
             client_socket.sendall("RESYNC".encode()) # deice server로 "RESYNC" 명령어를 송신합니다.
-            print('resync board clock')
+            rData = client_socket.recv(10000)
         except OSError as msg:
             print(f"socket error {msg} exiting..")
             os._exit(0)
+
+        rData = rData.decode('utf_8')
+        try:
+            j = json.loads(rData) # j : 서버로부터 받은 json file을 dict 형식으로 변환한 것
+        except ValueError:
+            print("invalid data from socket skip.")
+            return
+
+        if "Timestamp" in j:
+            boardTime2 = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S.%f')
+            print(f'got new time {boardTime} -> {boardTime2}')
+            boardTime = boardTime2
+        else:
+            print(f'time sync got no time {j}')
 
         for aename in ae:
             # skip if not measuring
@@ -632,6 +646,7 @@ def do_capture(target):
                 memory[aename]['file']={}
     # 데이타 전송처리 끝
 
+    t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
 
     offset_dict = {
         "AC":0,
@@ -725,6 +740,8 @@ def do_capture(target):
             #print('reslstart==N, skip real time mqtt sending')
             pass
 
+    t1_msg += f' - doneMQTT - {process_time()-t1_start:.1f}s' 
+
     # 센서별 json file 생성
     # 내 ae에 지정된 sensor type정보만을 저장
     for aename in ae:
@@ -733,6 +750,10 @@ def do_capture(target):
 
         stype = sensor_type(aename)
         jsonSave(aename, raw_json[stype])
+
+    t1_msg += f' - doneSaving - {process_time()-t1_start:.1f}s' 
+    if process_time()-t1_start>0.5:
+        print(f'TIME {t1_msg}')
 
 
 def do_tick():

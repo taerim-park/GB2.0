@@ -92,6 +92,7 @@ def sync_time():
         print(f'INVALID BaseTimeStamp= {BaseTimeStamp}  try again')
 
     print(f'syc_time BaseTime= {BaseTime}  BaseTimeStamp= {BaseTimeStamp}')
+    return str(BaseTime)
 
 # int Twos_Complement(string data, int length)
 # bit data를 int data로 바꾸어줍니다.
@@ -433,9 +434,9 @@ def do_command(command, param):
     
     # main
     if command=="RESYNC":
-        sync_time()
-        ok_data = {"Status":"Ok"}
+        ok_data = {"Status":"Ok", "Timestamp": sync_time()}
         sending_data = json.dumps(ok_data, ensure_ascii=False)
+        print(f'sync {ok_data["Timestamp"]}')
 
     elif command=="START":
         flag = False
