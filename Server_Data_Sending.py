@@ -81,13 +81,17 @@ def sync_time():
     global BaseTime
     global BaseTimeStamp
     
-    BaseTime = datetime.now()
-    time.sleep(ds)  
-    spi.xfer2([0x27])
-    time.sleep(ds)  
-    status_data_i_got = spi.xfer2([0x0]*14)
+    for i in range(5):
+        BaseTime = datetime.now()
+        time.sleep(ds)  
+        spi.xfer2([0x27])
+        time.sleep(ds)  
+        status_data_i_got = spi.xfer2([0x0]*14)
 
-    BaseTimeStamp = status_data_i_got[3] << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0]  - TimeCorrection
+        BaseTimeStamp = status_data_i_got[3] << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0]  - TimeCorrection
+        if BaseTimeStamp > 0: break
+        print(f'INVALID BaseTimeStamp= {BaseTimeStamp}  try again')
+
     print(f'syc_time BaseTime= {BaseTime}  BaseTimeStamp= {BaseTimeStamp}')
 
 # int Twos_Complement(string data, int length)
@@ -456,6 +460,7 @@ def do_command(command, param):
         d=get_status_data()
         d["Status"]="Ok"
         sending_data = json.dumps(d, ensure_ascii=False)
+        print('query board with state info')
 
     elif command=="CONFIG":
         sending_config_data = [0x09]
@@ -472,7 +477,7 @@ def do_command(command, param):
         rcv = spi.xfer2(sending_config_data)
         ok_data = {"Status":"Ok"}
         sending_data = json.dumps(ok_data, ensure_ascii=False)
-        #print('CONFIG returns ', sending_data)
+        print('wrote board with config info')
     else:
         print('WRONG COMMAND: ', command)
         fail_data = {"Status":"False","Reason":"Wrong Command"}

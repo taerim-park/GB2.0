@@ -21,12 +21,12 @@ install= {"date":"2022-04-25","place":"금남2교(하)","placecode":F"{bridge}",
 connect={"cseip":host,"cseport":7579,"csename":csename,"cseid":csename,"mqttip":host,"mqttport":port,"uploadip":"m.damoa.io","uploadport":uploadport}
 
 # AC X,Y,Z can't coexist in current conf
-#make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
-make_ae(F'ae.{bridge}-AC_S1M_02_X', csename, install, connect)
+make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
+#make_ae(F'ae.{bridge}-AC_S1M_02_X', csename, install, connect)
 #make_ae(F'ae.{bridge}-AC_S1M_03_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
 
 root='/home/pi/GB'
 for aename in ae:
@@ -39,9 +39,10 @@ for aename in ae:
                 print(e)
                 print(f'wrong {aename}.conf')
     else:
-        print(f'read from conf.py')
+        print(f'read {aename} from conf.py')
 
 memory={}
+boardTime=""
 
 if __name__ == "__main__":
     print(ae)

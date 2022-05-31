@@ -78,19 +78,19 @@ def savedJson(aename, btime):
     print('measure time begin: 0')
     
     data_list = list()
-    print(f'{mymemory["file"].keys()}')
+    print(f'{aename} processing {len(mymemory["file"])} records(sec)')
 
     for i in range(0, 600): # 10분간 기간
         key = (btime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
         if not key in mymemory["file"]:
-            print(f'no key= {key} i= {i}')
+            print(f'{aename} no key= {key} i= {i}')
             break
         json_data = mymemory["file"][key]
         if isinstance(json_data['data'], list): data_list.extend(json_data["data"])
         else: data_list.append(json_data["data"])
         start_time = datetime.strftime(btime - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
 
-    print(f"len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
+    print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
     
     data_list_np = np.array(data_list)
     dmeasure = {}
@@ -128,9 +128,9 @@ def savedJson(aename, btime):
     port = ae[aename]['config']['connect']['uploadport']
     url = F"http://{host}:{port}/upload"
 
-    print(f'upload url= {url} {save_path}/{file_name}.bin')
+    print(f'{aename} upload url= {url} {save_path}/{file_name}.bin')
     r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(F"{save_path}/{file_name}.bin", "rb")})
-    print(f'result= {r.text}')
-    print(f'uploaded a file elapsed= {process_time()-point1:.1f}s')
+    print(f'{aename} result= {r.text}')
+    print(f'{aename} uploaded a file elapsed= {process_time()-point1:.1f}s')
 
     mymemory["file"]={}
