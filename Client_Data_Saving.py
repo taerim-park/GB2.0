@@ -486,7 +486,7 @@ def do_capture(target):
         print(f'got result {j}')
         return 
 
-    if j['Origin'] != 'CAPTURE' and j['Status'] != 'False':
+    if j['Origin'] == 'CAPTURE' and j['Status'] == 'False':
         #print(f'device not ready {j}')
         return
 
