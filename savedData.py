@@ -64,8 +64,6 @@ def FFT(cmeasure, data_list):
 
     return data_FFT_X[data_FFT_list.index(peak)]
 
-# def void read(string aename)
-# 입력받은 aename을 가진 oneM2M 서버에 통계값을 포함한 컨텐트인스턴스 생성 명령을 보냅니다.
 def savedJson(aename, btime):
     global root, ae, memory
     #print(f'create ci for {aename}')
@@ -78,6 +76,7 @@ def savedJson(aename, btime):
     print('measure time begin: 0')
     
     data_list = list()
+    recent_data = {}
     print(f'{aename} processing {len(mymemory["file"])} records(sec)')
 
     for i in range(0, 600): # 10분간 기간
@@ -85,34 +84,45 @@ def savedJson(aename, btime):
         if not key in mymemory["file"]:
             print(f'{aename} no key= {key} i= {i}')
             break
+        if i == 1: # 가장 최근 데이터를 뽑아낸다
+            recent_data = mymemory["file"][key]
         json_data = mymemory["file"][key]
         if isinstance(json_data['data'], list): data_list.extend(json_data["data"])
         else: data_list.append(json_data["data"])
         start_time = datetime.strftime(btime - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
 
-    print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
-    
-    data_list_np = np.array(data_list)
-    dmeasure = {}
-    dmeasure['type'] = "D"
-    dmeasure['time'] = datetime.strftime(btime, '%Y-%m-%d %H:%M:%S.%f')
-    dmeasure['min'] = np.min(data_list_np)
-    dmeasure['max']= np.max(data_list_np)
-    dmeasure['avg'] = np.average(data_list_np)
-    dmeasure['std'] = np.std(data_list_np)
-    dmeasure['rms'] = np.sqrt(np.mean(data_list_np**2))
-    ae[aename]['data']['dmeasure'] = dmeasure
-    create.ci(aename, 'data', 'dmeasure')
-    
-    if cmeasure["usefft"] in {"Y", "y"}:
-        hrz = FFT(cmeasure, data_list_np)
-        if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
-            fft = {}
-            fft["start"]=start_time
-            fft["end"]=datetime.strftime(btime, '%Y-%m-%d %H:%M:%S.%f')
-            fft["st1hz"]=hrz
-            ae[aename]['data']['fft']=fft
-            create.ci(aename, 'data', 'fft')
+    if sensor_type(aename) == "AC" or sensor_type(aename) == "DS": # 동적 데이터의 경우
+        print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
+        
+        data_list_np = np.array(data_list)
+        dmeasure = {}
+        dmeasure['type'] = "D"
+        dmeasure['time'] = datetime.strftime(btime, '%Y-%m-%d %H:%M:%S.%f')
+        dmeasure['min'] = np.min(data_list_np)
+        dmeasure['max']= np.max(data_list_np)
+        dmeasure['avg'] = np.average(data_list_np)
+        dmeasure['std'] = np.std(data_list_np)
+        dmeasure['rms'] = np.sqrt(np.mean(data_list_np**2))
+        ae[aename]['data']['dmeasure'] = dmeasure
+        create.ci(aename, 'data', 'dmeasure')
+        
+        if cmeasure["usefft"] in {"Y", "y"}:
+            hrz = FFT(cmeasure, data_list_np)
+            if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
+                fft = {}
+                fft["start"]=start_time
+                fft["end"]=datetime.strftime(btime, '%Y-%m-%d %H:%M:%S.%f')
+                fft["st1hz"]=hrz
+                ae[aename]['data']['fft']=fft
+                create.ci(aename, 'data', 'fft')
+
+    else: # 정적 데이터의 경우, 하나의 데이터만을 전송. FFT 설정에는 아예 반응하지 않는다
+        dmeasure = {}
+        dmeasure['val'] = recent_data["data"]
+        dmeasure['time'] = recent_data["time"]
+        dmeasure['type'] = "S"
+        ae[aename]['data']['dmeasure'] = dmeasure
+        create.ci(aename, 'data', 'dmeasure')
 
     merged_file = { # 최종적으로 rawperiod간의 데이터가 저장될 json의 dict
         "starttime":start_time,
@@ -120,7 +130,7 @@ def savedJson(aename, btime):
         "count":len(data_list),
         "data":data_list
     }
-    file_name = f'{aename}_{btime.strftime("%Y%m%d%H%M")}'
+    file_name = f'{btime.strftime("%Y%m%d%H%M")}_{aename}'
     with open (F"{save_path}/{file_name}.bin", "w") as f:
         json.dump(merged_file, f, indent=4) # 통합 data 저장. 분단위까지 파일명에 기록됩니다
 

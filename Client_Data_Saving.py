@@ -302,14 +302,23 @@ def mqtt_sending(aename, data):
     test_list = list()
     if type(data) == type(test_list):
         count = len(data)
-    else:
-        count = 1
-    BODY = {
-        "start":now.strftime("%Y-%m-%d %H:%M:%S.%f"),
-        "samplerate":ae[aename]["config"]["cmeasure"]['samplerate'],
-        "count":count,
-        "data":data
+        BODY = {
+            "start":now.strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "samplerate":ae[aename]["config"]["cmeasure"]['samplerate'],
+            "count":count,
+            "data":data
         }
+    else:
+        array_data = list()
+        array_data.append(data)
+        count = 1
+        BODY = {
+            "start":now.strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "samplerate":ae[aename]["config"]["cmeasure"]['samplerate'],
+            "count":count,
+            "data":array_data
+            }
+
     mqttc.publish(F'/{csename}/{aename}/realtime', json.dumps(BODY, ensure_ascii=False))
     
 
