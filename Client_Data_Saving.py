@@ -391,20 +391,9 @@ def do_config(param):
         return
     try:
         client_socket.sendall(("CONFIG"+json.dumps(setting, ensure_ascii=False)).encode())
-        rData = client_socket.recv(10000)
     except OSError as msg:
         print(f"socket error {msg} exiting..")
         os._exit(0)
-
-    rData = rData.decode('utf_8')
-    jsonData = json.loads(rData) # jsonData : 서버로부터 받은 json file을 dict 형식으로 변환한 것
-
-    if jsonData["Status"] == "False":
-        ae[aename]['state']["abflag"]="Y"
-        ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S.%f")
-        ae[aename]['state']["abdesc"]="board config failed"
-        state.report(aename)
-        return
 
     if save=='save':
         print(f'do_config: got result {jsonData}')
@@ -481,33 +470,27 @@ def do_capture(target):
         print("invalid data from socket skip.")
         return
 
-    now=datetime.now()
-    # 모든 Server 메시지에는 'Status'가 있다
-    if 'Status' not in j:
-        print(f'found no Status {j} at {now.strftime("%H:%M:%S")}')
-        return
-
     session_active=True
-    if j['Status']=='False':
-        #print(f"{j} at {now.strftime('%H:%M:%S')} +{(now-time_old).total_seconds():.1f}s fetching speed won sensor board speed")
-        time_old=now
+
+    if not 'Origin' in j:
+        print(f'No Origin  {j}')
         return
 
-    if 'Timestamp' not in j:
-        if j['Status']!='Ok':
-            print(f'no Timestamp but got Ok {j} at {now.strftime("%H:%M:%S")}')
-        else:
-            print(f'no Timestamp {j} at {now.strftime("%H:%M:%S")}')
-        return
-
-    if target == 'STATUS':
+    if j['Origin']=='STATUS' and j['Status']=='Ok':
+        print(f'got STATUS return ok')
         for aename in ae:
             ae[aename]['state']['battery']=j['battery']
         return
 
+    if 'Origin' in j and j['Origin'] in {'RESYNC','STATUS','CONFIG'}:
+        print(f'got result {j}')
+        return 
+
+    if j['Origin'] != 'CAPTURE' and j['Status'] != 'Ok':
+        print(f'got ERROR {j}')
+        return
+    
     t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
-    #else target == 'CAPTURE'    
-    #print('got=',j)
 
     boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S.%f')
     if not gotBoardTime:
@@ -615,24 +598,9 @@ def do_capture(target):
             return
         try:
             client_socket.sendall("RESYNC".encode()) # deice server로 "RESYNC" 명령어를 송신합니다.
-            rData = client_socket.recv(10000)
         except OSError as msg:
             print(f"socket error {msg} exiting..")
             os._exit(0)
-
-        rData = rData.decode('utf_8')
-        try:
-            j = json.loads(rData) # j : 서버로부터 받은 json file을 dict 형식으로 변환한 것
-        except ValueError:
-            print("invalid data from socket skip.")
-            return
-
-        if "Timestamp" in j:
-            boardTime2 = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S.%f')
-            print(f'got new time {boardTime} -> {boardTime2}')
-            boardTime = boardTime2
-        else:
-            print(f'time sync got no time {j}')
 
         for aename in ae:
             # skip if not measuring

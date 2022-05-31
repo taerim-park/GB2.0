@@ -435,6 +435,7 @@ def do_command(command, param):
     # main
     if command=="RESYNC":
         ok_data = {"Status":"Ok", "Timestamp": sync_time()}
+        ok_data['Origin'] = command
         sending_data = json.dumps(ok_data, ensure_ascii=False)
         print(f'sync {ok_data["Timestamp"]}')
 
@@ -448,11 +449,13 @@ def do_command(command, param):
     elif command=="CAPTURE":
         # CAPTURE 명령어를 받으면, 센서 데이터를 포함한 json file을 client에 넘깁니다.
         data = data_receiving()
+        data['Origin']=command
         sending_data = json.dumps(data, ensure_ascii=False) 
 
     elif command=="STATUS":
         d=get_status_data()
         d["Status"]="Ok"
+        d["Origin"]=command
         sending_data = json.dumps(d, ensure_ascii=False)
         print('query board with state info')
 
@@ -470,6 +473,7 @@ def do_command(command, param):
             sending_config_data.append(tmp >> 8)
         rcv = spi.xfer2(sending_config_data)
         ok_data = {"Status":"Ok"}
+        ok_data['Origin'] = command
         sending_data = json.dumps(ok_data, ensure_ascii=False)
         print('wrote board with config info')
     else:
