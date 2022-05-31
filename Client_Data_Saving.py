@@ -134,7 +134,7 @@ def jsonSave(aename, jsonFile):
         if sec>1: print(f'{aename} json add {mymemory["head"]} len= {len(mymemory["file"])} extra')
         else: 
             rpitime = datetime.now()
-            if len(mymemory["file"])%20 ==0: print(f'{aename} json add {mymemory["head"]} len= {len(mymemory["file"])} board= {boardTime} rpi= {rpitime} diff= {rpitime - boardTime}.total_seconds()')
+            if len(mymemory["file"])%20 ==0: print(f'{aename} json add {mymemory["head"]} len= {len(mymemory["file"])} board= {boardTime} rpi= {rpitime} diff= {(rpitime - boardTime).total_seconds()}')
         sec -= 1
     
     while len(mymemory["file"])>600:
