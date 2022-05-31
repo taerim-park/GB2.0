@@ -420,7 +420,7 @@ def get_status_data():
     status_data["Timestamp"] = time_conversion( timestamp ) # board uptime 
     status_data["resetFlag"] = status_data_i_got[5]  << 8  | status_data_i_got[4]   
     status_data["solar"]     = solar #
-    status_data["battery"]   = battery #battery %
+    status_data["battery"]   = float(f'{battery:.1f}') #battery %
     status_data["vdd"]       = vdd 
     status_data["errcode"]   = status_data_i_got[13] << 8  | status_data_i_got[12]  
     return(status_data)
