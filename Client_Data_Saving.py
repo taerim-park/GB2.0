@@ -489,6 +489,11 @@ def do_capture(target):
     if j['Origin'] != 'CAPTURE' and j['Status'] != 'Ok':
         print(f'got ERROR {j}')
         return
+
+    if not 'Timestamp' in j:
+        print(f'no Timestamp {j}')
+        return
+
     
     t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
 
