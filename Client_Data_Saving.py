@@ -186,10 +186,14 @@ def do_user_command(aename, jcmd):
 
     elif cmd in {'measurestart'}:
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
-        create.ci(aename, 'config', 'cmeasure')
+        #create.ci(aename, 'config', 'cmeasure')
+        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
+        t1.start()
     elif cmd in {'measurestop'}:
         ae[aename]['config']['cmeasure']['measurestate']='stopped'
-        create.ci(aename, 'config', 'cmeasure')
+        #create.ci(aename, 'config', 'cmeasure')
+        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
+        t1.start()
     elif cmd in {'settrigger', 'setmeasure'}:
         print(f'cmd= {jcmd}')
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
@@ -229,18 +233,24 @@ def do_user_command(aename, jcmd):
             schedule[aename]['config']=ckey
             schedule[aename]['save']='save'
         save_conf(aename)
-        create.ci(aename, 'config', ckey)
+        #create.ci(aename, 'config', ckey)
+        t1 = threading.Thread(target=create.ci, args=(aename, 'config', ckey))
+        t1.start()
 
     elif cmd in {'settime'}:
         print(f'set time= {jcmd["time"]}')
         ae[aename]["config"]["time"]= jcmd["time"]
         save_conf(aename)
-        create.ci(aename, 'config', 'time')
+        #create.ci(aename, 'config', 'time')
+        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'time'))
+        t1.start()
     elif cmd in {'setconnect'}:
         print(f'set {aename}/connect= {jcmd["connect"]}')
         for x in jcmd["connect"]:
             ae[aename]["connect"][x]=jcmd["connect"][x]
-        create.ci(aename, 'config', 'connect')
+        #create.ci(aename, 'config', 'connect')
+        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'connect'))
+        t1.start()
         save_conf(aename)
     elif cmd == 'inoon':
         cmd2=jcmd['cmd2']
@@ -397,7 +407,10 @@ def do_config(param):
 
     if save=='save':
         print(f'do_config: got result {jsonData}')
-        if config in {'ctrigger', 'cmeasure'}: create.ci(aename, 'config', config)
+        if config in {'ctrigger', 'cmeasure'}: 
+            #create.ci(aename, 'config', config)
+            t1 = threading.Thread(target=create.ci, args=(aename, 'config', config))
+            t1.start()
 
 def do_trigger_followup(aename):
     global ae,root,path
@@ -432,7 +445,9 @@ def do_trigger_followup(aename):
         dtrigger[f'data{i}']=data[i*5000:i*5000+5000]
     dtrigger[f'data{i}']=data[i*5000:]
     dtrigger["start"] = start
-    create.ci(aename, 'data', 'dtrigger')
+    #create.ci(aename, 'data', 'dtrigger')
+    t1 = threading.Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
+    t1.start()
     print(f"comiled trigger data: {len(data)} bytes for bfsec+afsec= {ctrigger['bfsec']+ctrigger['afsec']}")
 
 session_active = False
@@ -455,7 +470,7 @@ def do_capture(target):
     t1_msg="0s"
     #print('do capture')
     if connect() == 'no':
-        return
+        return 'err',0,0
     try:
         client_socket.sendall(target.encode()) # deice server로 'CAPTURE' 명령어를 송신합니다.
         rData = client_socket.recv(10000)
@@ -468,31 +483,31 @@ def do_capture(target):
         j = json.loads(rData) # j : 서버로부터 받은 json file을 dict 형식으로 변환한 것
     except ValueError:
         print("invalid data from socket skip.")
-        return
+        return 'err',0,0
 
     session_active=True
 
     if not 'Origin' in j:
         print(f'No Origin  {j}')
-        return
+        return 'err',0,0
 
     if j['Origin']=='STATUS' and j['Status']=='Ok':
         print(f'got STATUS return ok')
         for aename in ae:
             ae[aename]['state']['battery']=j['battery']
-        return
+        return 'err',0,0
 
     if 'Origin' in j and j['Origin'] in {'RESYNC','STATUS','CONFIG'}:
         print(f'got result {j}')
-        return 
+        return 'err',0,0
 
     if j['Origin'] == 'CAPTURE' and j['Status'] == 'False':
         #print(f'device not ready {j}')
-        return
+        return 'err',0,0
 
     if not 'Timestamp' in j:
         print(f"no Timestamp {j} at {datetime.now().strftime('%H:%M:%S')}")
-        return
+        return 'err',0,0
 
     
     t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
@@ -585,7 +600,9 @@ def do_capture(target):
 
         # AC need afsec
         if sensor_type(aename) != "AC":
-            create.ci(aename, "data", "dtrigger") # 정적 트리거 전송은 따로 do_trigger_followup을 실행하지 않는다.
+            #create.ci(aename, "data", "dtrigger") # 정적 트리거 전송은 따로 do_trigger_followup을 실행하지 않는다.
+            t1 = threading.Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
+            t1.start()
             print("sent trigger for {aename}")
 
     t1_msg += f' - doneTrigger - {process_time()-t1_start:.1f}s' 
@@ -600,7 +617,7 @@ def do_capture(target):
         print(f'GOT 10s minutes')
         # resync board clock first
         if connect() == 'no':
-            return
+            return 'err',0,0
         try:
             client_socket.sendall("RESYNC".encode()) # deice server로 "RESYNC" 명령어를 송신합니다.
         except OSError as msg:
@@ -612,7 +629,7 @@ def do_capture(target):
             if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
 
             if schedule[aename]['measure'] < boardTime:
-                savedData.savedJson(aename,  schedule[aename]['measure'])
+                stat, t1_start, t1_msg = savedData.savedJson(aename,  schedule[aename]['measure'], t1_start, t1_msg)
                 schedule_measureperiod(aename)
             else:
                 print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min. clear 10 minute long data.")
@@ -725,13 +742,14 @@ def do_capture(target):
         jsonSave(aename, raw_json[stype])
 
     t1_msg += f' - doneSaving - {process_time()-t1_start:.1f}s' 
-    if process_time()-t1_start>0.5:
-        print(f'TIME {t1_msg}')
+    #if process_time()-t1_start>0.5:
+    #print(f'TIME {t1_msg}')
+    return 'ok', t1_start, t1_msg
 
 
 def do_tick():
     global schedule, boardTime
-    do_capture('CAPTURE')
+    stat, t1_start, t1_msg = do_capture('CAPTURE')
 
     for aename in schedule:
         if 'config' in schedule[aename]: 
@@ -751,6 +769,10 @@ def do_tick():
         if schedule[aename]['state'] < boardTime:
             state.report(aename)
             schedule_state(aename)
+
+    if stat=='ok' and process_time()-t1_start>0.3:
+        t1_msg += f' - doneChores - {process_time()-t1_start:.1f}s'
+        print(t1_msg)
         
 
 def startup():

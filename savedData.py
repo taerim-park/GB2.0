@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from time import process_time
 import numpy as np
 import requests
+import threading
 
 import create
 import conf
@@ -64,7 +65,7 @@ def FFT(cmeasure, data_list):
 
     return data_FFT_X[data_FFT_list.index(peak)]
 
-def savedJson(aename, btime):
+def savedJson(aename, btime, t1_start, t1_msg):
     global root, ae, memory
     #print(f'create ci for {aename}')
     cmeasure = ae[aename]['config']['cmeasure']
@@ -93,6 +94,7 @@ def savedJson(aename, btime):
         if isinstance(json_data['data'], list): data_list.extend(json_data["data"])
         else: data_list.append(json_data["data"])
 
+    t1_msg += f' - doneCollectData - {process_time()-t1_start:.1f}s'
 
     if sensor_type(aename) == "AC" or sensor_type(aename) == "DS": # 동적 데이터의 경우
         print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
@@ -107,7 +109,9 @@ def savedJson(aename, btime):
         dmeasure['std'] = np.std(data_list_np)
         dmeasure['rms'] = np.sqrt(np.mean(data_list_np**2))
         ae[aename]['data']['dmeasure'] = dmeasure
-        create.ci(aename, 'data', 'dmeasure')
+        #create.ci(aename, 'data', 'dmeasure')
+        t3=threading.Thread(target=create.ci, args=(aename, 'data', 'dmeasure'))
+        t3.start()
         
         if cmeasure["usefft"] in {"Y", "y"}:
             hrz = FFT(cmeasure, data_list_np)
@@ -117,7 +121,9 @@ def savedJson(aename, btime):
                 fft["end"]=recent_data['time']
                 fft["st1hz"]=hrz
                 ae[aename]['data']['fft']=fft
-                create.ci(aename, 'data', 'fft')
+                #create.ci(aename, 'data', 'fft')
+                t0=threading.Thread(target=create.ci, args=(aename, 'data', 'fft'))
+                t0.start()
 
     else: # 정적 데이터의 경우, 하나의 데이터만을 전송. FFT 설정에는 아예 반응하지 않는다
         dmeasure = {}
@@ -125,7 +131,11 @@ def savedJson(aename, btime):
         dmeasure['time'] = recent_data["time"]
         dmeasure['type'] = "S"
         ae[aename]['data']['dmeasure'] = dmeasure
-        create.ci(aename, 'data', 'dmeasure')
+        #create.ci(aename, 'data', 'dmeasure')
+        t1=threading.Thread(target=create.ci, args=(aename, 'data', 'dmeasure'))
+        t1.start()
+
+    t1_msg += f' - doneSendCi - {process_time()-t1_start:.1f}s'
 
     merged_file = { # 최종적으로 rawperiod간의 데이터가 저장될 json의 dict
         "starttime":start_time,
@@ -133,18 +143,34 @@ def savedJson(aename, btime):
         "count":len(data_list),
         "data":data_list
     }
+
+    file_name = f'{save_path}/{btime.strftime("%Y%m%d%H%M")}_{aename}.bin'
+
     # saved file의 이름은 끝나는 시간임
-    file_name = f'{btime.strftime("%Y%m%d%H%M")}_{aename}'
-    with open (F"{save_path}/{file_name}.bin", "w") as f:
-        json.dump(merged_file, f, indent=4) # 통합 data 저장. 분단위까지 파일명에 기록됩니다
+    def savefile(fname, mfile):
+        with open (fname, "w") as f: json.dump(mfile, f, indent=4)
+    #savefile(aename, btime, f'{save_path}/{file_name}.bin')
+    t2=threading.Thread(target=savefile, args=(file_name, merged_file))
+    t2.start()
 
-    host = ae[aename]['config']['connect']['uploadip']
-    port = ae[aename]['config']['connect']['uploadport']
-    url = F"http://{host}:{port}/upload"
 
-    print(f'{aename} upload url= {url} {save_path}/{file_name}.bin')
-    r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(F"{save_path}/{file_name}.bin", "rb")})
-    print(f'{aename} result= {r.text}')
+    t1_msg += f' - doneSaveFile - {process_time()-t1_start:.1f}s'
+
+    def upload(aename, fname):
+        global ae, save_path
+        host = ae[aename]['config']['connect']['uploadip']
+        port = ae[aename]['config']['connect']['uploadport']
+        url = F"http://{host}:{port}/upload"
+        print(f'{aename} upload url= {url} {fname}')
+        r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(fname, "rb")})
+        print(f'{aename} result= {r.text}')
+
+    #upload(aename, f'{save_path}/{file_name}.bin')
+    t2=threading.Thread(target=upload, args=(aename, file_name))
+    t2.start()
     print(f'{aename} uploaded a file elapsed= {process_time()-point1:.1f}s')
-
     mymemory["file"]={}
+
+    t1_msg += f' - doneUploadFile - {process_time()-t1_start:.1f}s'
+
+    return 'ok', t1_start, t1_msg
