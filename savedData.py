@@ -13,10 +13,7 @@ import requests
 import threading
 
 import create
-import conf
-ae = conf.ae
-root=conf.root
-memory=conf.memory
+from conf import ae, boardTime, root, memory
 
 def sensor_type(aename):
     return aename.split('-')[1][0:2]
@@ -65,9 +62,10 @@ def FFT(cmeasure, data_list):
 
     return data_FFT_X[data_FFT_list.index(peak)]
 
-def savedJson(aename, btime, t1_start, t1_msg):
-    global root, ae, memory
-    #print(f'create ci for {aename}')
+# j는  서버에서 받은 아직 처리되지 않은 Json Data임 정적데이타는 이걸 써야함
+def savedJson(aename,j, t1_start, t1_msg):
+    global root, ae, memory, boardTime
+    print(f'create ci for {aename} {j}')
     cmeasure = ae[aename]['config']['cmeasure']
     save_path = F"{root}/merged_data/{sensor_type(aename)}"
     if not os.path.exists(save_path): os.makedirs(save_path)
@@ -80,12 +78,13 @@ def savedJson(aename, btime, t1_start, t1_msg):
     #recent_data = {}  # bug..?
     print(f'{aename} processing {len(mymemory["file"])} records(sec)')
 
+    # boardTime 기준으로, 아직 이시간 데이타는 hold되고있지 Json 으로 저정되어있지 않다.
     for i in range(1, 601): # 10분간 기간
-        key = (btime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
+        key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
         if i == 1: # 가장 최근 데이터를 뽑아낸다, i=0이 정시 boardData 를 처리하기전으로 수정
             recent_data = mymemory["file"][key]
         # 데이타가 600개가 되지 않을 경우도 있다. 그래서 계속 값지정. 마지막에 지정된 값이 시작시간이 된다.
-        start_time = datetime.strftime(btime - timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
+        start_time = boardTime - timedelta(seconds=i)  # no ms .%f
 
         if not key in mymemory["file"]:
             print(f'{aename} no key= {key} i= {i}')
@@ -99,10 +98,12 @@ def savedJson(aename, btime, t1_start, t1_msg):
     if sensor_type(aename) == "AC" or sensor_type(aename) == "DS": # 동적 데이터의 경우
         print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
         
+        #print(f'len(data_list)= {len(data_list)}')
+        #print(data_list)
         data_list_np = np.array(data_list)
         dmeasure = {}
         dmeasure['type'] = "D"
-        dmeasure['time'] = start_time   # spec에 의하면 10분 측정구간의 시작시간을 지정
+        dmeasure['time'] = start_time.strftime("%Y-%m-%d %H:%M:%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
         dmeasure['min'] = np.min(data_list_np)
         dmeasure['max']= np.max(data_list_np)
         dmeasure['avg'] = np.average(data_list_np)
@@ -117,7 +118,7 @@ def savedJson(aename, btime, t1_start, t1_msg):
             hrz = FFT(cmeasure, data_list_np)
             if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
                 fft = {}
-                fft["start"]=start_time
+                fft["start"]=start_time.strftime("%Y-%m-%d %H:%M:%S")
                 fft["end"]=recent_data['time']
                 fft["st1hz"]=hrz
                 ae[aename]['data']['fft']=fft
@@ -127,8 +128,8 @@ def savedJson(aename, btime, t1_start, t1_msg):
 
     else: # 정적 데이터의 경우, 하나의 데이터만을 전송. FFT 설정에는 아예 반응하지 않는다
         dmeasure = {}
-        dmeasure['val'] = recent_data["data"]
-        dmeasure['time'] = recent_data["time"]
+        dmeasure['val'] = j["data"]
+        dmeasure['time'] = j["time"]
         dmeasure['type'] = "S"
         ae[aename]['data']['dmeasure'] = dmeasure
         #create.ci(aename, 'data', 'dmeasure')
@@ -138,18 +139,18 @@ def savedJson(aename, btime, t1_start, t1_msg):
     t1_msg += f' - doneSendCi - {process_time()-t1_start:.1f}s'
 
     merged_file = { # 최종적으로 rawperiod간의 데이터가 저장될 json의 dict
-        "starttime":start_time,
-        "endtime":datetime.strftime(btime, '%Y-%m-%d %H:%M:%S.%f'),
+        "starttime":start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "endtime":recent_data['time'],
         "count":len(data_list),
         "data":data_list
     }
 
-    file_name = f'{save_path}/{btime.strftime("%Y%m%d%H%M")}_{aename}.bin'
+    file_name = f'{save_path}/{start_time.strftime("%Y%m%d%H%M")}_{aename}.bin'
 
-    # saved file의 이름은 끝나는 시간임
+    # saved file의 이름은 끝나는 시간임 --> 시작시간으로 변경
     def savefile(fname, mfile):
         with open (fname, "w") as f: json.dump(mfile, f, indent=4)
-    #savefile(aename, btime, f'{save_path}/{file_name}.bin')
+    #savefile(aename, boardTime, f'{save_path}/{file_name}.bin')
     t2=threading.Thread(target=savefile, args=(file_name, merged_file))
     t2.start()
 

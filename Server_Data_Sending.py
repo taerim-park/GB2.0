@@ -67,7 +67,7 @@ def time_conversion(stamp):
     #return str(BaseTime + timedelta(milliseconds = t_delta))
 
     c_delta = stamp - BaseTimeStamp
-    return str(BaseTime + timedelta(milliseconds = c_delta))
+    return (BaseTime + timedelta(milliseconds = c_delta)).strftime("%Y-%m-%d %H:%M:%S")
 
 def status_conversion(solar, battery, vdd):
     solar   = 0.003013 * solar + 1.2824

@@ -20,9 +20,9 @@ def report(aename):
     state['memory']=float(m2)
     state['disk']= float(f"{psutil.disk_usage('/')[3]:.1f}")
     if boardTime=="":
-        state['time']= datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        state['time']= datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     else:
-        state['time']= boardTime.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        state['time']= boardTime.strftime("%Y-%m-%d %H:%M:%S")
 
     sec = time.time() - psutil.boot_time()
     days=int(sec/86400)
@@ -32,7 +32,7 @@ def report(aename):
     mins=int(sec/60)
     sec=int(sec%60)
 
-    state['uptime']= f'{days}days, {hours}:{mins}:{sec}'
+    state['uptime']= f'{days}days, {hours:02}:{mins:02}:{sec:02}'
 
     print('update', state)
     # board에서 가져온 battery는 이미 ae값에 저장되어 여기서 사용

@@ -25,25 +25,16 @@ from paho.mqtt import client as mqtt
 from events import Events
 from RepeatedTimer import RepeatedTimer
 
-import conf
 import create  #for Mobius resource
 import versionup
 import make_oneM2M_resource
 import savedData
 import state
 
-broker = conf.host
-port = conf.port
-csename = conf.csename
-memory=conf.memory
-ae = conf.ae
-slack = conf.slack
-boardTime = conf.boardTime
-supported_sensors = conf.supported_sensors
+from conf import csename, memory, ae, slack, port, host as broker, boardTime, supported_sensors, root, TOPIC_list
 
 # head insert point  tail removing point
 
-root=conf.root
 schedule={}
     # schedule{aename: {   
         #'config':{},
@@ -53,7 +44,6 @@ schedule={}
 
 TOPIC_callback=f'/oneM2M/req/{csename}/#'
 TOPIC_response=f'/oneM2M/resp/{csename}'
-TOPIC_list = conf.TOPIC_list
 mqttc=""
 command=""
 m10={} # 매 10분단위 숫자
@@ -126,8 +116,8 @@ def jsonSave(aename, jsonFile):
         mymemory["tail"]= now_time
 
     sec = int((now_time - mymemory["head"]).total_seconds())
-    if sec>10:
-        print(f'sec too big {sec} limiting to 10')
+    if sec>30:
+        print(f'sec too big {sec} limiting to 30')
         sec=10
     while sec>0:
         mymemory["head"] = mymemory["head"] + timedelta(seconds=1)
@@ -135,7 +125,7 @@ def jsonSave(aename, jsonFile):
         if sec>1: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} extra')
         else: 
             rpitime = datetime.now()
-            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= {(rpitime - boardTime).total_seconds():.1f}s')
+            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= {(rpitime - boardTime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%H:%M:%S")} state= {schedule[aename]["state"].strftime("%H:%M:%S")})')
         sec -= 1
     
     while len(mymemory["file"])>600:
@@ -349,7 +339,7 @@ def mqtt_sending(aename, data):
     if type(data) == type(test_list):
         count = len(data)
         BODY = {
-            "start":now.strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "start":boardTime.strftime("%Y-%m-%d %H:%M:%S"),
             "samplerate":ae[aename]["config"]["cmeasure"]['samplerate'],
             "count":count,
             "data":data
@@ -359,7 +349,7 @@ def mqtt_sending(aename, data):
         array_data.append(data)
         count = 1
         BODY = {
-            "start":now.strftime("%Y-%m-%d %H:%M:%S.%f"),
+            "start":boardTime.strftime("%Y-%m-%d %H:%M:%S"),
             "samplerate":ae[aename]["config"]["cmeasure"]['samplerate'],
             "count":count,
             "data":array_data
@@ -419,16 +409,15 @@ def do_trigger_followup(aename):
     dtrigger=ae[aename]['data']['dtrigger']
     ctrigger = ae[aename]['config']['ctrigger']
     stype = sensor_type(aename)
-    trigger= datetime.strptime(dtrigger['time'],'%Y-%m-%d %H:%M:%S.%f')
     mymemory=memory[aename]
 
     data = list()
     start=""
     for i in range(-ctrigger['bfsec'],ctrigger['afsec']):
-        key = datetime.strftime(trigger + timedelta(seconds=i), "%Y-%m-%d-%H%M%S")
+        key = dtrigger['time']
         try:
             json_data = mymemory["file"][key]
-            start=datetime.strftime(trigger + timedelta(seconds=i), "%Y-%m-%d %H:%M:%S.%f")
+            if start=="": start=trigger + timedelta(seconds=i)
         except:
             print(f' skip i={i}', end='')
             continue
@@ -444,7 +433,7 @@ def do_trigger_followup(aename):
         if i*5000+5000>len(data): break
         dtrigger[f'data{i}']=data[i*5000:i*5000+5000]
     dtrigger[f'data{i}']=data[i*5000:]
-    dtrigger["start"] = start
+    dtrigger["start"] = start.strftime("%Y-%m-%d %H:%M:%S")
     #create.ci(aename, 'data', 'dtrigger')
     t1 = threading.Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
     t1.start()
@@ -512,7 +501,7 @@ def do_capture(target):
     
     t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
 
-    boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S.%f')
+    boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S')
     if not gotBoardTime:
         gotBoardTime = True
         schedule_first()
@@ -580,7 +569,7 @@ def do_capture(target):
         else:
             # 정적 데이터의 경우, 트리거 발생 당시의 데이터를 전송한다
             print(f"got non-AC trigger {aename}  bfsec= {ctrigger['bfsec']}  afsec= {ctrigger['afsec']}")
-            dtrigger['start']=j["Timestamp"]
+            dtrigger['start']=boardTime.strftime("%Y-%m-%d %H:%M:%S")
             dtrigger['count'] = 1
             
             if sensor_type(aename) == "DI": data = j["DI"][dis_channel]+cmeasure['offset']
@@ -591,7 +580,7 @@ def do_capture(target):
             #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
             dtrigger['val'] = data
 
-        dtrigger['time']=j["Timestamp"] # 트리거 신호가 발생한 당시의 시각
+        dtrigger['time']=boardTime.strftime("%Y-%m-%d %H:%M:%S") # 트리거 신호가 발생한 당시의 시각
         dtrigger['mode']=ctrigger['mode']
         dtrigger['sthigh']=ctrigger['st1high']
         dtrigger['stlow']=ctrigger['st1low']
@@ -628,8 +617,9 @@ def do_capture(target):
             # skip if not measuring
             if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
 
-            if schedule[aename]['measure'] < boardTime:
-                stat, t1_start, t1_msg = savedData.savedJson(aename,  schedule[aename]['measure'], t1_start, t1_msg)
+            if schedule[aename]['measure'] <= boardTime:
+                # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
+                stat, t1_start, t1_msg = savedData.savedJson(aename, j, t1_start, t1_msg)
                 schedule_measureperiod(aename)
             else:
                 print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min. clear 10 minute long data.")
@@ -766,9 +756,9 @@ def do_tick():
             state.report(aename)
             del schedule[aename]['reqstate']
 
-        if schedule[aename]['state'] < boardTime:
+        if schedule[aename]['state'] <= boardTime:
             state.report(aename)
-            schedule_state(aename)
+            schedule_stateperiod(aename)
 
     if stat=='ok' and process_time()-t1_start>0.3:
         t1_msg += f' - doneChores - {process_time()-t1_start:.1f}s'
@@ -804,11 +794,10 @@ def schedule_measureperiod(aename1):
         cmeasure['rawperiod'] = int(cmeasure['measureperiod']/60)
         print(f"cmeasure.rawperiod= {cmeasure['rawperiod']} min")
 
-        sbtime = (boardTime+timedelta(seconds=cmeasure['measureperiod'])).strftime('%Y-%m-%d %H:%M:%S')
-        schedule[aename]['measure']= datetime.strptime(sbtime, '%Y-%m-%d %H:%M:%S')
-        print(f'measure schedule[{aename}] at {schedule[aename]["measure"].strftime("%H:%M:%S")}')
+        schedule[aename]['measure'] = boardTime+timedelta(seconds=cmeasure['measureperiod'])
+        print(f'measure schedule[{aename}] at {schedule[aename]["measure"]}')
 
-def schedule_state(aename1):
+def schedule_stateperiod(aename1):
     global ae, schedule, boardTime
     for aename in ae:
         if aename1 != "" and aename != aename1: continue
@@ -819,9 +808,8 @@ def schedule_state(aename1):
         elif not isinstance(cmeasure['stateperiod'],int): cmeasure['stateperiod']=60
         print(f"cmeasure.stateperiod= {cmeasure['stateperiod']} min")
 
-        btime = boardTime+timedelta(minutes=cmeasure['stateperiod'])
-        schedule[aename]['state']= btime
-        print(f'state schedule[{aename}] at {btime.strftime("%H:%M:%S")}')
+        schedule[aename]['state'] = boardTime+timedelta(minutes=cmeasure['stateperiod'])
+        print(f'state schedule[{aename}] at {schedule[aename]["state"]}')
 
 def schedule_first():
     global ae, schedule, boardTime
@@ -832,9 +820,9 @@ def schedule_first():
         #btime = obtime
         schedule[aename]['measure']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
         schedule[aename]['state']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
-        print(f'{aename} set first schedule for measure, state at {boardTime.strftime("%H:%M:%S")} -> {schedule[aename]["state"].strftime("%H:%M:%S")}')
+        print(f'{aename} set first schedule for measure, state at {boardTime} -> {schedule[aename]["state"]}')
         slack(aename, json.dumps(ae[aename]))
-        print(ae[aename])
+        #print(ae[aename])
 
 for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}
