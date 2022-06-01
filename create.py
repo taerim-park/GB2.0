@@ -8,15 +8,16 @@ import json
 import sys
 import os
 from datetime import datetime
-from conf import host, port, csename, ae, slack
+from conf import csename, ae, slack
 
 def ci(aename, cnt, subcnt):
-    global ae
+    global ae, csename
+    c=ae[aename]['config']['connect']
     h={
         "Accept": "application/json",
         "X-M2M-RI": "12345",
         "X-M2M-Origin": "S",
-        "Host": F'{host}',
+        "Host": F"{c['cseip']}",
         "Content-Type":"application/vnd.onem2m-res+json;ty=4"
     }
     body={
@@ -26,10 +27,10 @@ def ci(aename, cnt, subcnt):
         }
     }
     if cnt in {'config','info','data'}:
-        url = F"http://{host}:7579/{csename}/{aename}/{cnt}/{subcnt}"
+        url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}/{cnt}/{subcnt}"
         body["m2m:cin"]["con"] = ae[aename][cnt][subcnt]
     else:
-        url = F"http://{host}:7579/{csename}/{aename}/{cnt}"
+        url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}/{cnt}"
         body["m2m:cin"]["con"] = ae[aename][cnt]
     #print(f'{url} {json.dumps(body)[:50]}...')
     #print(f'{url}')
@@ -48,7 +49,7 @@ def ci(aename, cnt, subcnt):
     except requests.exceptions.RequestException as e:
         print(f'failed to ci {e}')
 
-    slack(aename, f'created {url}/{r.json()["m2m:cin"]["rn"]}')
+    slack(aename, f'created {url}')
 
 # (ae.323376-TP_A1_01_X, {'info','config'})
 def allci(aei, all):
@@ -57,7 +58,7 @@ def allci(aei, all):
     for cnti in ae[aei]:
         for subcnti in ae[aei][cnti]:
             if cnti in all:
-                #print(f'{aei}/{cnti}/{subcnti}')
+                print(f'allci {aei}/{cnti}/{subcnti}')
                 ci(aei, cnti, subcnti)
 
 if __name__== "__main__":

@@ -13,7 +13,7 @@ import requests
 import threading
 
 import create
-from conf import ae, boardTime, root, memory
+from conf import ae, root, memory
 
 def sensor_type(aename):
     return aename.split('-')[1][0:2]
@@ -62,12 +62,14 @@ def FFT(cmeasure, data_list):
 
     return data_FFT_X[data_FFT_list.index(peak)]
 
-# j는  서버에서 받은 아직 처리되지 않은 Json Data임 정적데이타는 이걸 써야함
-def savedJson(aename,j, t1_start, t1_msg):
-    global root, ae, memory, boardTime
-    print(f'create ci for {aename} {j}')
+# raw_json 은 file로 저장준비가된 모든 센서들 통합 데이타
+def savedJson(aename,raw_json, t1_start, t1_msg):
+    global root, ae, memory
+    print(f'create ci for {aename}')
     cmeasure = ae[aename]['config']['cmeasure']
     save_path = F"{root}/merged_data/{sensor_type(aename)}"
+    j = raw_json[sensor_type(aename)]
+    boardTime = datetime.strptime(j['time'],'%Y-%m-%d %H:%M:%S')
     if not os.path.exists(save_path): os.makedirs(save_path)
 
     mymemory=memory[aename]
@@ -79,12 +81,13 @@ def savedJson(aename,j, t1_start, t1_msg):
     print(f'{aename} processing {len(mymemory["file"])} records(sec)')
 
     # boardTime 기준으로, 아직 이시간 데이타는 hold되고있지 Json 으로 저정되어있지 않다.
+    print(f'boardTime= {boardTime} ')
     for i in range(1, 601): # 10분간 기간
         key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
         if i == 1: # 가장 최근 데이터를 뽑아낸다, i=0이 정시 boardData 를 처리하기전으로 수정
             recent_data = mymemory["file"][key]
         # 데이타가 600개가 되지 않을 경우도 있다. 그래서 계속 값지정. 마지막에 지정된 값이 시작시간이 된다.
-        start_time = boardTime - timedelta(seconds=i)  # no ms .%f
+        start_time = boardTime - timedelta(seconds=i)
 
         if not key in mymemory["file"]:
             print(f'{aename} no key= {key} i= {i}')
@@ -103,7 +106,7 @@ def savedJson(aename,j, t1_start, t1_msg):
         data_list_np = np.array(data_list)
         dmeasure = {}
         dmeasure['type'] = "D"
-        dmeasure['time'] = start_time.strftime("%Y-%m-%d %H:%M:%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
+        dmeasure['time'] = start_time.strftime("%Y-%m-%d-%H%M%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
         dmeasure['min'] = np.min(data_list_np)
         dmeasure['max']= np.max(data_list_np)
         dmeasure['avg'] = np.average(data_list_np)
@@ -118,7 +121,7 @@ def savedJson(aename,j, t1_start, t1_msg):
             hrz = FFT(cmeasure, data_list_np)
             if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
                 fft = {}
-                fft["start"]=start_time.strftime("%Y-%m-%d %H:%M:%S")
+                fft["start"]=start_time.strftime("%Y-%m-%d-%H%M%S")
                 fft["end"]=recent_data['time']
                 fft["st1hz"]=hrz
                 ae[aename]['data']['fft']=fft
@@ -139,7 +142,7 @@ def savedJson(aename,j, t1_start, t1_msg):
     t1_msg += f' - doneSendCi - {process_time()-t1_start:.1f}s'
 
     merged_file = { # 최종적으로 rawperiod간의 데이터가 저장될 json의 dict
-        "starttime":start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "starttime":start_time.strftime("%Y-%m-%d-%H%M%S"),
         "endtime":recent_data['time'],
         "count":len(data_list),
         "data":data_list

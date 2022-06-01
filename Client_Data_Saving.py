@@ -600,36 +600,6 @@ def do_capture(target):
 
     # end of trigger            
 
-    # boardTime이 정시가딘것이  확인되면 먼저 데이타 전송  처리작업을 한다.  10분의 기간이 10:00 ~ 19:99 이기때문
-    if aename not in m10: m10[aename]=""
-    if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
-    if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
-        m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
-        print(f'GOT 10s minutes')
-        # resync board clock first
-        if connect() == 'no':
-            return 'err',0,0
-        try:
-            client_socket.sendall("RESYNC".encode()) # deice server로 "RESYNC" 명령어를 송신합니다.
-        except OSError as msg:
-            print(f"socket error {msg} exiting..")
-            os._exit(0)
-
-        for aename in ae:
-            # skip if not measuring
-            if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
-
-            if schedule[aename]['measure'] <= boardTime:
-                # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
-                stat, t1_start, t1_msg = savedData.savedJson(aename, j, t1_start, t1_msg)
-                schedule_measureperiod(aename)
-            else:
-                print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min. clear 10 minute long data.")
-                memory[aename]['file']={}
-    # 데이타 전송처리 끝
-
-    t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
-
     offset_dict = {
         "AC":0,
         "DI":0,
@@ -704,6 +674,38 @@ def do_capture(target):
     raw_json['AC'] = jsonCreate('AC', Time_data, Acceleration_data)
     raw_json['DS'] = jsonCreate('DS', Time_data, Strain_data)
     
+
+
+    # boardTime이 정시가딘것이  확인되면 먼저 데이타 전송  처리작업을 한다.  10분의 기간이 10:00 ~ 19:99 이기때문
+    if aename not in m10: m10[aename]=""
+    if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
+    if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
+        m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
+        print(f'GOT 10s minutes')
+        # resync board clock first
+        if connect() == 'no':
+            return 'err',0,0
+        try:
+            client_socket.sendall("RESYNC".encode()) # deice server로 "RESYNC" 명령어를 송신합니다.
+        except OSError as msg:
+            print(f"socket error {msg} exiting..")
+            os._exit(0)
+
+        for aename in ae:
+            # skip if not measuring
+            if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+
+            if schedule[aename]['measure'] <= boardTime:
+                # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
+                stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+                schedule_measureperiod(aename)
+            else:
+                print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min. clear 10 minute long data.")
+                memory[aename]['file']={}
+    # 데이타 전송처리 끝
+    t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
+
+
     
     # mqtt 전송을 시행하기로 했다면 mqtt 전송 시행
     # 내 device의 ae에 지정된 sensor type 정보만을 전송
@@ -818,8 +820,6 @@ def schedule_first():
     for aename in ae:
         sbtime = (boardTime+timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M:%S')
         sbtime1 = sbtime[:15]+'0:00'
-        #obtime = boardTime+timedelta(minutes=1)
-        #btime = obtime
         schedule[aename]['measure']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
         schedule[aename]['state']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
         print(f'{aename} set first schedule for measure, state at {boardTime} -> {schedule[aename]["state"]}')
