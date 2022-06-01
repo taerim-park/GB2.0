@@ -3,15 +3,11 @@ import json
 import sys
 import create
 
-import conf
-host = conf.host
-port = conf.port
-csename = conf.csename
-ae = conf.ae
-root=conf.root
+from conf import host, port, csename, ae
 verify_only=False
 
 def makeit():
+    global ae
     print('Using ', host)
     print('Query CB:')
     h={

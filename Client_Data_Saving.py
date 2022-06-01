@@ -107,7 +107,7 @@ def jsonCreate(dataType, timeData, realData):
 # 파일명은 기본적으로 날짜
 
 def jsonSave(aename, jsonFile):
-    global memory
+    global memory, boardTime
     mymemory = memory[aename]
     # remove microsec 2022-05-30 03:20:01.477113
     now_time = datetime.strptime(jsonFile['time'].split('.')[0],'%Y-%m-%d %H:%M:%S')
@@ -139,12 +139,12 @@ def jsonSave(aename, jsonFile):
 
 
 def save_conf(aename):
-    global ae
+    global ae, root
     with open(F"{root}/{aename}.conf","w") as f: f.write(json.dumps(ae[aename], ensure_ascii=False,indent=4))
     print(f"wrote {aename}.conf")
 
 def do_user_command(aename, jcmd):
-    global ae, schedule, root
+    global ae, schedule, root, boardTime
     print(f'got command= {jcmd}')
     cmd=jcmd['cmd']
     if 'reset' in cmd:
@@ -192,13 +192,13 @@ def do_user_command(aename, jcmd):
         if 'measureperiod' in jcmd[ckey]: 
             if not isinstance(jcmd[ckey][x],int):
                 ae[aename]['state']["abflag"]="N"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S.%f")
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]="measureperiod must be integer. defaulted to 600"
                 state.report(aename)
                 v=600
             elif jcmd[ckey][x] < 600:
                 ae[aename]['state']["abflag"]="N"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S.%f")
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]="measureperiod must be bigger than 600. defaulted to 600"
                 state.report(aename)
                 v=600
@@ -206,7 +206,7 @@ def do_user_command(aename, jcmd):
             elif jcmd[ckey][x]%600 != 0:
                 v = int(jcmd[ckey][x]/600)*600
                 ae[aename]['state']["abflag"]="N"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S.%f")
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {v} and accepted"
                 state.report(aename)
             else:
@@ -297,6 +297,7 @@ def got_callback(topic, msg):
 
 
 def connect_mqtt():
+    global mqttc
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             print(f"Connected to {broker} via MQTT")
@@ -331,6 +332,7 @@ print("mqtt 연결에 성공했습니다.")
 # mqtt 전송을 수행합니다. 단, mqtt 전송을 사용하지 않기로 한 센서라면, 수행하지 않습니다.
 # 센서에 따라 다른 TOPIC에 mqtt 메시지를 publish합니다.
 def mqtt_sending(aename, data):   
+    global csename, boardTime, mqttc
     if mqttc=="":
         connect_mqtt()
 
@@ -403,7 +405,7 @@ def do_config(param):
             t1.start()
 
 def do_trigger_followup(aename):
-    global ae,root,path
+    global ae,memory
 
     #print(f'trigger_followup {aename}')
     dtrigger=ae[aename]['data']['dtrigger']

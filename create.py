@@ -8,15 +8,7 @@ import json
 import sys
 import os
 from datetime import datetime
-
-import conf
-host = conf.host
-port = conf.port
-csename = conf.csename
-ae = conf.ae
-slack = conf.slack
-
-root=conf.root
+from conf import host, port, csename, ae, slack
 
 def ci(aename, cnt, subcnt):
     global ae
