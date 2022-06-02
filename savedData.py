@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from time import process_time
 import numpy as np
 import requests
-import threading
+from threading import Timer, Thread
 
 import create
 from conf import ae, root, memory
@@ -119,8 +119,8 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         dmeasure['rms'] = np.sqrt(np.mean(data_list_np**2))
         ae[aename]['data']['dmeasure'] = dmeasure
         #create.ci(aename, 'data', 'dmeasure')
-        t3=threading.Thread(target=create.ci, args=(aename, 'data', 'dmeasure'))
-        t3.start()
+        print(f'TIMER: create.ci +1s')
+        Timer(1, create.ci,[aename, 'data', 'dmeasure']).start()
         
         if cmeasure["usefft"] in {"Y", "y"}:
             hrz = FFT(cmeasure, data_list_np)
@@ -131,7 +131,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
                 fft["st1hz"]=hrz
                 ae[aename]['data']['fft']=fft
                 #create.ci(aename, 'data', 'fft')
-                t0=threading.Thread(target=create.ci, args=(aename, 'data', 'fft'))
+                t0=Thread(target=create.ci, args=(aename, 'data', 'fft'))
                 t0.start()
 
     else: # 정적 데이터의 경우, 하나의 데이터만을 전송. FFT 설정에는 아예 반응하지 않는다
@@ -141,8 +141,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         dmeasure['type'] = "S"
         ae[aename]['data']['dmeasure'] = dmeasure
         #create.ci(aename, 'data', 'dmeasure')
-        t1=threading.Thread(target=create.ci, args=(aename, 'data', 'dmeasure'))
-        t1.start()
+        t1=Thread(target=create.ci, args=(aename, 'data', 'dmeasure')).start()
 
     t1_msg += f' - doneSendCi - {process_time()-t1_start:.1f}s'
 
@@ -156,35 +155,41 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     file_name = f'{save_path}/{start_time.strftime("%Y%m%d%H%M")}_{aename}.bin'
 
     # saved file의 이름은 끝나는 시간임 --> 시작시간으로 변경
-    def savefile(fname, mfile):
-        with open (fname, "w") as f: json.dump(mfile, f, indent=4)
+    def savefile(merged_file):
+        with open (file_name, "w") as f: json.dump(merged_file, f, indent=4)
+        print(f'TIMER: saved')
     #savefile(aename, boardTime, f'{save_path}/{file_name}.bin')
-    t2=threading.Thread(target=savefile, args=(file_name, merged_file))
-    t2.start()
+    print(f'TIMER: savefile +2s')
+    Timer(2, savefile, [merged_file]).start()
 
 
     t1_msg += f' - doneSaveFile - {process_time()-t1_start:.1f}s'
 
-    def upload(aename, fname):
-        global ae, save_path
+    def upload():
         host = ae[aename]['config']['connect']['uploadip']
         port = ae[aename]['config']['connect']['uploadport']
         url = F"http://{host}:{port}/upload"
-        print(f'{aename} upload url= {url} {fname}')
-        r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(fname, "rb")})
-        print(f'{aename} result= {r.text}')
+        print(f'{aename} upload url= {url} {file_name}')
+        try:
+            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(file_name, "rb")})
+            print(f'TIMER: {aename} result= {r.text}')
+        except:
+            print(f'TIMER: fail-to-upload {aename} file={file_name}')
 
     #upload(aename, f'{save_path}/{file_name}.bin')
-    t2=threading.Thread(target=upload, args=(aename, file_name))
-    t2.start()
-    print(f'{aename} uploaded a file elapsed= {process_time()-point1:.1f}s')
+    print(f'TIMER: upload +3s')
+    Timer(3, upload).start()
+    #print(f'{aename} uploaded a file elapsed= {process_time()-point1:.1f}s')
 
     # reserve some data for trigger follow-up
-    mymemory["file"]={}
-    for i in range(300, 1000): # 전 5분간의 데이타를 save해둔다. 
+    for i in range(60, 1000): # 전 1분간의 데이타를 save해둔다. 
         key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
         if key in mymemory["file"]: del mymemory["file"][key]
+        else:
+            print(f'done removing break at {i} {key}')
+            break
 
     t1_msg += f' - doneUploadFile - {process_time()-t1_start:.1f}s'
 
+    print("RETURN from savedJson()")
     return 'ok', t1_start, t1_msg

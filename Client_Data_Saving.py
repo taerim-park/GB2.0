@@ -2,12 +2,11 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220530_0300'
+VERSION='20220603_V1.0'
 print('\n===========')
 print(f'Verion {VERSION}')
 
 from encodings import utf_8
-import threading
 from threading import Timer, Thread
 import random
 import requests
@@ -128,7 +127,7 @@ def jsonSave(aename, jsonFile):
             if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= {(rpitime - boardTime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%H:%M:%S")} state= {schedule[aename]["state"].strftime("%H:%M:%S")})')
         sec -= 1
     
-    while len(mymemory["file"])>600:
+    while len(mymemory["file"])>660:
         try:
             del mymemory["file"][mymemory["tail"].strftime('%Y-%m-%d-%H%M%S')]
             print(f'{aename} removing extra json > 600  {mymemory["tail"].strftime("%Y-%m-%d-%H%M%S")}')
@@ -177,12 +176,12 @@ def do_user_command(aename, jcmd):
     elif cmd in {'measurestart'}:
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
         #create.ci(aename, 'config', 'cmeasure')
-        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
+        t1 = Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
         t1.start()
     elif cmd in {'measurestop'}:
         ae[aename]['config']['cmeasure']['measurestate']='stopped'
         #create.ci(aename, 'config', 'cmeasure')
-        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
+        t1 = Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
         t1.start()
     elif cmd in {'settrigger', 'setmeasure'}:
         print(f'cmd= {jcmd}')
@@ -224,7 +223,7 @@ def do_user_command(aename, jcmd):
             schedule[aename]['save']='save'
         save_conf(aename)
         #create.ci(aename, 'config', ckey)
-        t1 = threading.Thread(target=create.ci, args=(aename, 'config', ckey))
+        t1 = Thread(target=create.ci, args=(aename, 'config', ckey))
         t1.start()
 
     elif cmd in {'settime'}:
@@ -232,14 +231,14 @@ def do_user_command(aename, jcmd):
         ae[aename]["config"]["time"]= jcmd["time"]
         save_conf(aename)
         #create.ci(aename, 'config', 'time')
-        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'time'))
+        t1 = Thread(target=create.ci, args=(aename, 'config', 'time'))
         t1.start()
     elif cmd in {'setconnect'}:
         print(f'set {aename}/connect= {jcmd["connect"]}')
         for x in jcmd["connect"]:
             ae[aename]['config']["connect"][x]=jcmd["connect"][x]
         #create.ci(aename, 'config', 'connect')
-        t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'connect'))
+        t1 = Thread(target=create.ci, args=(aename, 'config', 'connect'))
         t1.start()
         save_conf(aename)
     elif cmd == 'inoon':
@@ -401,7 +400,7 @@ def do_config(param):
         print(f'do_config: got result {param}')
         if config in {'ctrigger', 'cmeasure'}: 
             #create.ci(aename, 'config', config)
-            t1 = threading.Thread(target=create.ci, args=(aename, 'config', config))
+            t1 = Thread(target=create.ci, args=(aename, 'config', config))
             t1.start()
 
 def do_trigger_followup(aename):
@@ -439,7 +438,7 @@ def do_trigger_followup(aename):
     dtrigger[f'data{i}']=data[i*5000:]
     dtrigger["start"] = start.strftime("%Y-%m-%d %H:%M:%S")
     #create.ci(aename, 'data', 'dtrigger')
-    t1 = threading.Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
+    t1 = Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
     t1.start()
     print(f"comiled trigger data: {len(data)} bytes for bfsec+afsec= {ctrigger['bfsec']+ctrigger['afsec']}")
 
@@ -485,7 +484,7 @@ def do_capture(target):
         return 'err',0,0
 
     if j['Origin']=='STATUS' and j['Status']=='Ok':
-        print(f'got STATUS return ok')
+        #print(f'got STATUS return ok')
         for aename in ae:
             ae[aename]['state']['battery']=j['battery']
         return 'err',0,0
@@ -624,7 +623,7 @@ def do_capture(target):
             pass
         else:
             #create.ci(aename, "data", "dtrigger") # 정적 트리거 전송은 따로 do_trigger_followup을 실행하지 않는다.
-            t1 = threading.Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
+            t1 = Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
             t1.start()
             print("sent trigger for {aename}")
 
@@ -714,6 +713,7 @@ def do_capture(target):
     if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
         m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
         print(f'GOT 10s minutes')
+        time.sleep(0.001)
         # resync board clock first
         if connect() == 'no':
             return 'err',0,0
@@ -867,7 +867,6 @@ for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}
     trigger_activated[aename]=-1
     schedule[aename]={}
-
 
 print('Ready')
 Timer(3, startup).start()

@@ -34,7 +34,7 @@ def report(aename):
 
     state['uptime']= f'{days}days, {hours:02}:{mins:02}:{sec:02}'
 
-    print('update', state)
+    #print('update', state)
     # board에서 가져온 battery는 이미 ae값에 저장되어 여기서 사용
     create.ci(aename, 'state', '')
 

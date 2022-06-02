@@ -58,7 +58,7 @@ def allci(aei, all):
     for cnti in ae[aei]:
         for subcnti in ae[aei][cnti]:
             if cnti in all:
-                print(f'allci {aei}/{cnti}/{subcnti}')
+                #print(f'allci {aei}/{cnti}/{subcnti}')
                 ci(aei, cnti, subcnti)
 
 if __name__== "__main__":
