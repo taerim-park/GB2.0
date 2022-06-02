@@ -474,7 +474,7 @@ def do_capture(target):
     try:
         j = json.loads(rData) # j : 서버로부터 받은 json file을 dict 형식으로 변환한 것
     except ValueError:
-        print("invalid data from socket skip.")
+        print(f"no json: skip. rData={rData}")
         return 'err',0,0
 
     session_active=True

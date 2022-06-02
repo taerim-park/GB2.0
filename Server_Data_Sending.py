@@ -437,8 +437,9 @@ def do_command(command, param):
     if command=="RESYNC":
         ok_data = {"Status":"Ok", "Timestamp": sync_time()}
         ok_data['Origin'] = command
-        sending_data = json.dumps(ok_data, ensure_ascii=False)
+        #sending_data = json.dumps(ok_data, ensure_ascii=False)
         print(f'sync {ok_data["Timestamp"]}')
+        flag = False
 
     elif command=="START":
         flag = False
