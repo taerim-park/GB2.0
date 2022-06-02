@@ -176,7 +176,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     # reserve some data for trigger follow-up
     mymemory["file"]={}
-    for i in range(1, 901): # 전 5분간의 데이타를 save해둔다. 
+    for i in range(300, 1000): # 전 5분간의 데이타를 save해둔다. 
         key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
         if key in mymemory["file"]: del mymemory["file"][key]
 
