@@ -173,7 +173,12 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     t2=threading.Thread(target=upload, args=(aename, file_name))
     t2.start()
     print(f'{aename} uploaded a file elapsed= {process_time()-point1:.1f}s')
+
+    # reserve some data for trigger follow-up
     mymemory["file"]={}
+    for i in range(1, 901): # 전 5분간의 데이타를 save해둔다. 
+        key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
+        if key in mymemory["file"]: del mymemory["file"][key]
 
     t1_msg += f' - doneUploadFile - {process_time()-t1_start:.1f}s'
 

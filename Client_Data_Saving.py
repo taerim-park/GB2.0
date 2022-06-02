@@ -513,34 +513,60 @@ def do_capture(target):
     #print(f"trigger= {j['trigger']}")
 
     for aename in ae:
-        # skip if not measuring
-        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
 
         ctrigger=ae[aename]['config']['ctrigger']
         cmeasure=ae[aename]['config']['cmeasure']
         dtrigger=ae[aename]['data']['dtrigger']
         #print(f"aename= {aename} stype= {sensor_type(aename)} use= {ctrigger['use']}")
 
-        # aename에 트리거 이미 진행중
-        if aename in trigger_activated: # waiting for afsec
-            print(f'  trigger[{aename}]= {trigger_activated[aename]}')
-            if trigger_activated[aename]==0:
-                #print(f'follow_up trigger')
-                do_trigger_followup(aename)
-                del trigger_activated[aename]
-                continue
-            else:
-                trigger_activated[aename] -= 1
-        else:
-            print()
+        def print_trigger(trig):
+            msg =""
+            for x in trig: 
+                if msg != "": msg += " "
+                if trig[x]=='1': msg+=f"{x}"
+            return msg
 
-        if j['trigger'][sensor_type(aename)]=='0':
+        def all_trigger(trig):
+            for x in trig: 
+                if trig[x]=='1': return True
+            return False
+
+        # trigger counter가 살아있으면 -1  downcount
+        if trigger_activated[aename] >0: 
+            trigger_activated[aename] -= 1
+            print(f" trigger-counting-afsec-{trigger_activated[aename]}")
             continue
-        elif ctrigger['use'] not in {'Y','y'}:
-            #print(f"{aename} use trigger= {ctrigger['use']}")
+
+        # aename에 트리거 이미 진행중인 경우 먼저 처리
+        if trigger_activated[aename]==0:  # afsec 충족된 상태
+            do_trigger_followup(aename)
+            trigger_activated[aename]=-1  # -1 값이면 no trigger in progress
             continue
 
+        tmsg=""
+        # We do have (a) trigger(s)
+        if all_trigger(j['trigger']):
+            tmsg=f" got-trigger {print_trigger(j['trigger'])}"
 
+        # skip if not for me
+        if j['trigger'][sensor_type(aename)]=='0': 
+            tmsg +=  f" not-for-me-{aename}-skip"
+            #print(tmsg)
+            continue
+
+        # skip if not measuring
+        if cmeasure['measurestate'] != 'measuring':
+            tmsg += f" not-measuring-{aename}-skip"
+            print(tmsg)
+            continue
+
+        # skip if not enabled
+        if ctrigger['use'] not in {'Y','y'}:
+            tmsg+= f" not-enabled-{aename}-skip"
+            print(tmsg)
+            continue
+
+        # 새로운 trigger 처리
         if sensor_type(aename) == "AC": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
             trigger_list = j["AC"]
             trigger_data = "unknown"
@@ -561,15 +587,16 @@ def do_capture(target):
                         break
 
             if trigger_data == "unknown":
-                print(f" -> trigger not for me")
+                print(f" not-for-me-trig-condition-skip")
                 continue
                 
             dtrigger['val'] = trigger_data
-            print(f"  got AC trigger {aename} bfsec= {ctrigger['bfsec']}  afsec= {ctrigger['afsec']}")
-            if isinstance(ctrigger['afsec'],int) and ctrigger['afsec']>0:
+
+            print(f" got-trigger-new-{aename}-bfsec={ctrigger['bfsec']}-afsec={ctrigger['afsec']}")
+            if isinstance(ctrigger['afsec'],int) and ctrigger['afsec']>0: 
                 trigger_activated[aename]=ctrigger['afsec']
-            else:
-                print(f"invalid afsec= {ctrigger['afsec']}")
+            else: 
+                trigger_activated[aename]=60  # value error, 60 instead
         else:
             # 정적 데이터의 경우, 트리거 발생 당시의 데이터를 전송한다
             print(f"got non-AC trigger {aename}  bfsec= {ctrigger['bfsec']}  afsec= {ctrigger['afsec']}")
@@ -592,7 +619,10 @@ def do_capture(target):
         dtrigger['samplerate']=cmeasure['samplerate']
 
         # AC need afsec
-        if sensor_type(aename) != "AC":
+        if sensor_type(aename) == "AC":
+            #print("will process after afsec sec")
+            pass
+        else:
             #create.ci(aename, "data", "dtrigger") # 정적 트리거 전송은 따로 do_trigger_followup을 실행하지 않는다.
             t1 = threading.Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
             t1.start()
@@ -830,6 +860,7 @@ def schedule_first():
 
 for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}
+    trigger_activated[aename]=-1
     schedule[aename]={}
 
 
