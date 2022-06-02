@@ -774,7 +774,7 @@ def do_capture(target):
 
 
 def do_tick():
-    global schedule, boardTime
+    global schedule, boardTime, ae
     stat, t1_start, t1_msg = do_capture('CAPTURE')
 
     for aename in schedule:
