@@ -802,7 +802,7 @@ def do_tick():
         
 
 def startup():
-    global ae
+    global ae, schedule
     print('create ci at boot')
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
