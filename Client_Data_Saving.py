@@ -107,7 +107,7 @@ def jsonCreate(dataType, timeData, realData):
 # 파일명은 기본적으로 날짜
 
 def jsonSave(aename, jsonFile):
-    global memory, boardTime
+    global memory, boardTime, schedule
     mymemory = memory[aename]
     # remove microsec 2022-05-30 03:20:01.477113
     now_time = datetime.strptime(jsonFile['time'].split('.')[0],'%Y-%m-%d %H:%M:%S')
