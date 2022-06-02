@@ -792,9 +792,14 @@ def do_tick():
             state.report(aename)
             del schedule[aename]['reqstate']
 
-        if schedule[aename]['state'] <= boardTime:
-            state.report(aename)
-            schedule_stateperiod(aename)
+        try:
+            if schedule[aename]['state'] <= boardTime:
+                state.report(aename)
+                schedule_stateperiod(aename)
+        except:
+            print('got this error: boardTime= {boardTime}')
+            print(f'schedule.keys()= {schedule.keys()}')
+            print(ae)
 
     if stat=='ok' and process_time()-t1_start>0.3:
         t1_msg += f' - doneChores - {process_time()-t1_start:.1f}s'
