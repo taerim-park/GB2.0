@@ -106,7 +106,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         data_list_np = np.array(data_list)
         dmeasure = {}
         dmeasure['type'] = "D"
-        dmeasure['time'] = start_time.strftime("%Y-%m-%d-%H%M%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
+        dmeasure['time'] = start_time.strftime("%Y-%m-%d %H:%M:%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
         dmeasure['min'] = np.min(data_list_np)
         dmeasure['max']= np.max(data_list_np)
         dmeasure['avg'] = np.average(data_list_np)
@@ -121,7 +121,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
             hrz = FFT(cmeasure, data_list_np)
             if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
                 fft = {}
-                fft["start"]=start_time.strftime("%Y-%m-%d-%H%M%S")
+                fft["start"]=start_time.strftime("%Y-%m-%d %H:%M:%S")
                 fft["end"]=recent_data['time']
                 fft["st1hz"]=hrz
                 ae[aename]['data']['fft']=fft
@@ -142,7 +142,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     t1_msg += f' - doneSendCi - {process_time()-t1_start:.1f}s'
 
     merged_file = { # 최종적으로 rawperiod간의 데이터가 저장될 json의 dict
-        "starttime":start_time.strftime("%Y-%m-%d-%H%M%S"),
+        "starttime":start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "endtime":recent_data['time'],
         "count":len(data_list),
         "data":data_list
