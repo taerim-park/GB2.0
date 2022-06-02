@@ -410,16 +410,18 @@ def do_trigger_followup(aename):
     #print(f'trigger_followup {aename}')
     dtrigger=ae[aename]['data']['dtrigger']
     ctrigger = ae[aename]['config']['ctrigger']
+    trigger = datetime.strptime(dtrigger['time'],'%Y-%m-%d %H:%M:%S')
+
     stype = sensor_type(aename)
     mymemory=memory[aename]
 
     data = list()
     start=""
     for i in range(-ctrigger['bfsec'],ctrigger['afsec']):
-        key = dtrigger['time']
+        key = datetime.strftime(trigger + timedelta(seconds=i), "%Y-%m-%d-%H%M%S")
         try:
             json_data = mymemory["file"][key]
-            if start=="": start=trigger + timedelta(seconds=i)
+            if start=="": start= datetime.strptime(key,'%Y-%m-%d-%H%M%S')
         except:
             print(f' skip i={i}', end='')
             continue

@@ -106,7 +106,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         data_list_np = np.array(data_list)
         dmeasure = {}
         dmeasure['type'] = "D"
-        dmeasure['time'] = start_time.strftime("%Y-%m-%d-%H%M%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
+        dmeasure['time'] = start_time.strftime("%Y-%m-%d %H:%M:%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
         dmeasure['min'] = np.min(data_list_np)
         dmeasure['max']= np.max(data_list_np)
         dmeasure['avg'] = np.average(data_list_np)

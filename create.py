@@ -44,12 +44,12 @@ def ci(aename, cnt, subcnt):
         else:
             if subcnt == "": x=''
             else: x=f'/{subcnt}'
-            print(f'  created ci {aename}/{cnt}{x}/{r.json()["m2m:cin"]["rn"]} {json.dumps(r.json()["m2m:cin"]["con"])[:100]}...')
+            print(f'  created ci {aename}/{cnt}{x}/{r.json()["m2m:cin"]["rn"]} {json.dumps(r.json()["m2m:cin"]["con"], ensure_ascii=False)[:100]}...')
+            slack(aename, f'created {url}/{r.json()["m2m:cin"]["rn"]}')
             gotok=True
     except requests.exceptions.RequestException as e:
         print(f'failed to ci {e}')
 
-    slack(aename, f'created {url}')
 
 # (ae.323376-TP_A1_01_X, {'info','config'})
 def allci(aei, all):
