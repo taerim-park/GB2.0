@@ -457,7 +457,7 @@ def do_capture(target):
     global client_socket, mqtt_measure, time_old
     global trigger_activated, session_active
     global ae
-    global boardTime, gotBoardTime
+    global boardTime, gotBoardTime, schedule
 
     t1_start=process_time()
     t1_msg="0s"
