@@ -187,33 +187,33 @@ def do_user_command(aename, jcmd):
     elif cmd in {'settrigger', 'setmeasure'}:
         print(f'cmd= {jcmd}')
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
-        for x in jcmd[ckey]: ae[aename]["config"][ckey][x]= jcmd[ckey][x]
-
+        for x in jcmd[ckey]:
+            ae[aename]["config"][ckey][x]= jcmd[ckey][x]
         if 'measureperiod' in jcmd[ckey]: 
-            if not isinstance(jcmd[ckey][x],int):
-                ae[aename]['state']["abflag"]="N"
+            if not isinstance(jcmd[ckey]["measureperiod"],int):
+                ae[aename]['state']["abflag"]="Y"
                 ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]="measureperiod must be integer. defaulted to 600"
                 state.report(aename)
                 v=600
-            elif jcmd[ckey][x] < 600:
-                ae[aename]['state']["abflag"]="N"
+            elif jcmd[ckey]["measureperiod"] < 600:
+                ae[aename]['state']["abflag"]="Y"
                 ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]="measureperiod must be bigger than 600. defaulted to 600"
                 state.report(aename)
                 v=600
                 return
-            elif jcmd[ckey][x]%600 != 0:
+            elif jcmd[ckey]["measureperiod"]%600 != 0:
                 v = int(jcmd[ckey][x]/600)*600
-                ae[aename]['state']["abflag"]="N"
+                ae[aename]['state']["abflag"]="Y"
                 ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {v} and accepted"
                 state.report(aename)
             else:
-                v = jcmd[ckey][x]
+                v = jcmd[ckey]["measureperiod"]
             ae[aename]['config']['cmeasure']['measureperiod'] = v
         if 'stateperiod' in jcmd[ckey]: 
-            ae[aename]['config']['cmeasure']['stateperiod'] = jcmd[ckey][x]
+            ae[aename]['config']['cmeasure']['stateperiod'] = jcmd[ckey]['stateperiod']
         setboard=False
         if ckey=='cmeasure' and 'offset' in jcmd[ckey]: setboard=True
         if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd[ckey].keys()) !=0: setboard=True
@@ -237,7 +237,7 @@ def do_user_command(aename, jcmd):
     elif cmd in {'setconnect'}:
         print(f'set {aename}/connect= {jcmd["connect"]}')
         for x in jcmd["connect"]:
-            ae[aename]["connect"][x]=jcmd["connect"][x]
+            ae[aename]['config']["connect"][x]=jcmd["connect"][x]
         #create.ci(aename, 'config', 'connect')
         t1 = threading.Thread(target=create.ci, args=(aename, 'config', 'connect'))
         t1.start()
@@ -398,7 +398,7 @@ def do_config(param):
         os._exit(0)
 
     if save=='save':
-        print(f'do_config: got result {jsonData}')
+        print(f'do_config: got result {param}')
         if config in {'ctrigger', 'cmeasure'}: 
             #create.ci(aename, 'config', config)
             t1 = threading.Thread(target=create.ci, args=(aename, 'config', config))
@@ -779,7 +779,7 @@ def do_tick():
 
     for aename in schedule:
         if 'config' in schedule[aename]: 
-            do_config(schedule[aename]['config'])
+            do_config(schedule[aename]) # 수정부분
             del schedule[aename]['config']
 
         elif 'reqstate' in schedule[aename]:
