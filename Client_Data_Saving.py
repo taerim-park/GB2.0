@@ -228,7 +228,8 @@ def do_user_command(aename, jcmd):
 
     elif cmd in {'settime'}:
         print(f'set time= {jcmd["time"]}')
-        ae[aename]["config"]["time"]= jcmd["time"]
+        for x in jcmd["time"]:
+            ae[aename]["config"]["time"][x]= jcmd["time"][x]
         save_conf(aename)
         #create.ci(aename, 'config', 'time')
         t1 = Thread(target=create.ci, args=(aename, 'config', 'time'))
@@ -608,6 +609,7 @@ def do_capture(target):
             else: data = "nope"
 
             #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
+
             dtrigger['val'] = data
 
         dtrigger['time']=boardTime.strftime("%Y-%m-%d %H:%M:%S") # 트리거 신호가 발생한 당시의 시각

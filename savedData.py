@@ -11,6 +11,8 @@ from time import process_time
 import numpy as np
 import requests
 from threading import Timer, Thread
+import zipfile
+from os.path import basename
 
 import create
 from conf import ae, root, memory
@@ -103,45 +105,36 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     t1_msg += f' - doneCollectData - {process_time()-t1_start:.1f}s'
 
-    if sensor_type(aename) == "AC" or sensor_type(aename) == "DS": # 동적 데이터의 경우
-        print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
-        
-        #print(f'len(data_list)= {len(data_list)}')
-        #print(data_list)
-        data_list_np = np.array(data_list)
-        dmeasure = {}
-        dmeasure['type'] = "D"
-        dmeasure['time'] = start_time.strftime("%Y-%m-%d %H:%M:%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
-        dmeasure['min'] = np.min(data_list_np)
-        dmeasure['max']= np.max(data_list_np)
-        dmeasure['avg'] = np.average(data_list_np)
-        dmeasure['std'] = np.std(data_list_np)
-        dmeasure['rms'] = np.sqrt(np.mean(data_list_np**2))
-        ae[aename]['data']['dmeasure'] = dmeasure
-        #create.ci(aename, 'data', 'dmeasure')
-        print(f'TIMER: create.ci +1s')
-        Timer(1, create.ci,[aename, 'data', 'dmeasure']).start()
-        
-        if cmeasure["usefft"] in {"Y", "y"}:
-            hrz = FFT(cmeasure, data_list_np)
-            if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
-                fft = {}
-                fft["start"]=start_time.strftime("%Y-%m-%d %H:%M:%S")
-                fft["end"]=recent_data['time']
-                fft["st1hz"]=hrz
-                ae[aename]['data']['fft']=fft
-                #create.ci(aename, 'data', 'fft')
-                t0=Thread(target=create.ci, args=(aename, 'data', 'fft'))
-                t0.start()
+    print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
+    
+    #print(f'len(data_list)= {len(data_list)}')
+    #print(data_list)
+    data_list_np = np.array(data_list)
+    dmeasure = {}
+    dmeasure['type'] = "D"
+    dmeasure['time'] = start_time.strftime("%Y-%m-%d %H:%M:%S")   # spec에 의하면 10분 측정구간의 시작시간을 지정
+    dmeasure['min'] = np.min(data_list_np)
+    dmeasure['max']= np.max(data_list_np)
+    dmeasure['avg'] = np.average(data_list_np)
+    dmeasure['std'] = np.std(data_list_np)
+    dmeasure['rms'] = np.sqrt(np.mean(data_list_np**2))
+    ae[aename]['data']['dmeasure'] = dmeasure
+    #create.ci(aename, 'data', 'dmeasure')
+    print(f'TIMER: create.ci +1s')
+    Timer(1, create.ci,[aename, 'data', 'dmeasure']).start()
+    
+    if cmeasure["usefft"] in {"Y", "y"}:
+        hrz = FFT(cmeasure, data_list_np)
+        if hrz != -1 : #FFT 연산에 성공한 경우에만 hrz 기록
+            fft = {}
+            fft["start"]=start_time.strftime("%Y-%m-%d %H:%M:%S")
+            fft["end"]=recent_data['time']
+            fft["st1hz"]=hrz
+            ae[aename]['data']['fft']=fft
+            #create.ci(aename, 'data', 'fft')
+            t0=Thread(target=create.ci, args=(aename, 'data', 'fft'))
+            t0.start()
 
-    else: # 정적 데이터의 경우, 하나의 데이터만을 전송. FFT 설정에는 아예 반응하지 않는다
-        dmeasure = {}
-        dmeasure['val'] = j["data"]
-        dmeasure['time'] = j["time"]
-        dmeasure['type'] = "S"
-        ae[aename]['data']['dmeasure'] = dmeasure
-        #create.ci(aename, 'data', 'dmeasure')
-        t1=Thread(target=create.ci, args=(aename, 'data', 'dmeasure')).start()
 
     t1_msg += f' - doneSendCi - {process_time()-t1_start:.1f}s'
 
@@ -170,11 +163,19 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         port = ae[aename]['config']['connect']['uploadport']
         url = F"http://{host}:{port}/upload"
         print(f'{aename} upload url= {url} {file_name}')
+
+        # 파일 압축 실행
+        zip_file_name = F"{file_name[:len(file_name)-4]}.zip"
+        zip_file = zipfile.ZipFile(zip_file_name, "w")
+        zip_file.write(file_name, basename(file_name), compress_type=zipfile.ZIP_DEFLATED)
+        zip_file.close()
+        print(f"file compression has completed > {zip_file_name}")
+
         try:
-            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(file_name, "rb")})
+            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")})
             print(f'TIMER: {aename} result= {r.text}')
         except:
-            print(f'TIMER: fail-to-upload {aename} file={file_name}')
+            print(f'TIMER: fail-to-upload {aename} file={zip_file_name}')
 
     #upload(aename, f'{save_path}/{file_name}.bin')
     print(f'TIMER: upload +3s')
