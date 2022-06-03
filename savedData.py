@@ -162,7 +162,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         host = ae[aename]['config']['connect']['uploadip']
         port = ae[aename]['config']['connect']['uploadport']
         url = F"http://{host}:{port}/upload"
-        print(f'{aename} upload url= {url} {zip_file_name}')
+        print(f'{aename} upload url= {url} {file_name}')
 
         # 파일 압축 실행
         zip_file_name = F"{file_name[:len(file_name)-4]}.zip"
