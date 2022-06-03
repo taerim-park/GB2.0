@@ -187,7 +187,14 @@ def do_user_command(aename, jcmd):
         print(f'cmd= {jcmd}')
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
         for x in jcmd[ckey]:
+            if x not in ae[aename]["config"][ckey]:
+                ae[aename]['state']["abflag"]="Y"
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+                ae[aename]['state']["abdesc"]=f"{ae[aename]['config'][ckey]} has no key {x}"
+                state.report(aename)
+                return
             ae[aename]["config"][ckey][x]= jcmd[ckey][x]
+
         if 'measureperiod' in jcmd[ckey]: 
             if not isinstance(jcmd[ckey]["measureperiod"],int):
                 ae[aename]['state']["abflag"]="Y"
@@ -462,7 +469,7 @@ def do_capture(target):
         return 'err',0,0
     try:
         client_socket.sendall(target.encode()) # deice server로 'CAPTURE' 명령어를 송신합니다.
-        rData = client_socket.recv(10000)
+        rData = client_socket.recv(20000)
     except OSError as msg:
         print(f"socket error {msg} exiting..")
         os._exit(0)
