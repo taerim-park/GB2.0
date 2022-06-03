@@ -477,10 +477,12 @@ def do_command(command, param):
         ok_data = {"Status":"Ok"}
         ok_data['Origin'] = command
         sending_data = json.dumps(ok_data, ensure_ascii=False)
+        flag = False
     else:
         print('WRONG COMMAND: ', command)
         fail_data = {"Status":"False","Reason":"Wrong Command"}
         sending_data = json.dumps(fail_data, ensure_ascii=False)
+        flag=Falseflag = False
     
     if flag:
         #sending_data += '\n\n'
