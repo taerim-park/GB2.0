@@ -608,6 +608,7 @@ def do_capture(target):
             else: data = "nope"
 
             #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
+
             dtrigger['val'] = data
 
         dtrigger['time']=boardTime.strftime("%Y-%m-%d %H:%M:%S") # 트리거 신호가 발생한 당시의 시각
