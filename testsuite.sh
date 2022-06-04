@@ -40,10 +40,12 @@ for aename in ${ae[@]}; do
         python3 actuate.py  ${aename}  '{"cmd":"setmeasure","cmeasure":{"usefft":"N"}}'
         sleep 2
     
-        python3 actuate.py  ${aename}  '{"cmd":"setmeasure","cmeasure":{"usefft":"Y"}}'
+        python3 actuate.py  ${aename}  '{"cmd":"setmeasure","cmeasure":{"usefft":"Y", "offset":11}}'
         sleep 2
     fi
 
+    echo '다음음 firmware update 명령예시'
+    echo  python3 actuate.py  ${aename}   '{"cmd":"fwupdate","protocol":"HTTP","ip":"damoa.io","port":80,"path":"/update/20220512_0324.BIN"}'
     
 done
 
