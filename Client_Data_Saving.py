@@ -228,8 +228,6 @@ def do_user_command(aename, jcmd):
                 state.report(aename)
                 jcmd[ckey]['measureperiod']= int(jcmd[ckey][x]/600)*600
 
-            ae[aename]['config']['cmeasure']['measureperiod'] = v
-
         for k in jcmd[ckey]: ae[aename]['config'][ckey][k] = jcmd[ckey][k]   
         setboard=False
         if ckey=='cmeasure' and 'offset' in jcmd[ckey]: 
