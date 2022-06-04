@@ -8,7 +8,7 @@ host="218.232.234.232"  #건교부 테스트 사이트
 cse={'name':'cse-gnrb-mon'}
 
 def actuate(aename, cmd):
-    print('Actuator')
+    #print('Actuator')
     j=json.loads(cmd)
     h={
         "Accept": "application/json",
@@ -34,4 +34,4 @@ else:
     print(sys.argv)
 
 actuate(f'{sys.argv[1]}',f'{sys.argv[2]}')
-print('actuate', f'{sys.argv[1]}', f'{sys.argv[2]}')
+print(f'{sys.argv[1]}', f'{sys.argv[2]}')

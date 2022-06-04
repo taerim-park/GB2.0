@@ -184,16 +184,25 @@ def do_user_command(aename, jcmd):
         t1 = Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
         t1.start()
     elif cmd in {'settrigger', 'setmeasure'}:
-        print(f'cmd= {jcmd}')
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
-        for x in jcmd[ckey]:
-            if x not in ae[aename]["config"][ckey]:
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]=f"{ae[aename]['config'][ckey]} has no key {x}"
-                state.report(aename)
-                return
-            ae[aename]["config"][ckey][x]= jcmd[ckey][x]
+        k1=set(jcmd[ckey]) - {'use','mode','st1high','st1low','bfsec','afsec'}
+        if ckey=="ctrigger" and len(k1)>0:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]="Invlid key in ctrigger command: "
+            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
+            print(f"Invalid ctrigger command: {ckey} {k1}")
+            state.report(aename)
+            return
+        k1=set(jcmd[ckey]) - {'sensitivity','offset','measureperiod','stateperiod','usefft'}
+        if ckey=="cmeasure" and len(k1)>0:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]="Invlid key in cmeasure command: "
+            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
+            print(f"Invalid ctrigger command: {ckey} {k1}")
+            state.report(aename)
+            return
 
         if 'measureperiod' in jcmd[ckey]: 
             if not isinstance(jcmd[ckey]["measureperiod"],int):
@@ -218,17 +227,24 @@ def do_user_command(aename, jcmd):
             else:
                 v = jcmd[ckey]["measureperiod"]
             ae[aename]['config']['cmeasure']['measureperiod'] = v
+
         if 'stateperiod' in jcmd[ckey]: 
             ae[aename]['config']['cmeasure']['stateperiod'] = jcmd[ckey]['stateperiod']
         setboard=False
-        if ckey=='cmeasure' and 'offset' in jcmd[ckey]: setboard=True
-        if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd[ckey].keys()) !=0: setboard=True
+        if ckey=='cmeasure' and 'offset' in jcmd[ckey]: 
+            #print(f" {aename} {ckey} will write to board")
+            setboard=True
+        if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd[ckey].keys()) !=0: 
+            #print(f" {aename} {ckey} will write to board")
+            setboard=True
         if setboard:
             # 얘는 board에 설정하는 부분이 있다.
-            schedule[aename]['aename']=aename
-            schedule[aename]['config']=ckey
-            schedule[aename]['save']='save'
+            schedule[aename]['config']='doit'
+            print(f"set {schedule[aename]['config']}")
         save_conf(aename)
+        #create.ci(aename, 'config', ckey)
+        t1 = Thread(target=create.ci, args=(aename, 'config', ckey))
+        t1.start()
 
     elif cmd in {'settime'}:
         print(f'set time= {jcmd["time"]}')
@@ -366,15 +382,8 @@ def mqtt_sending(aename, data):
 
 time_old=datetime.now()
 
-def do_config(param):
-    global client_socket
-    global ae
-
-    aename=param["aename"]
-    config=param["config"]
-    save=param["save"]
-
-    print(f'do_config({param})')
+def do_config():
+    print(f'do_config()')
 
     setting={ 'AC':{'select':0x0100,'use':'N','st1high':0,'st1low':0, 'offset':0},
                 'DI':{'select':0x0800,'use':'N','st1high':0,'st1low':0, 'offset':0},
@@ -399,13 +408,6 @@ def do_config(param):
     except OSError as msg:
         print(f"socket error {msg} exiting..")
         os._exit(0)
-
-    if save=='save':
-        print(f'do_config: got result {param}')
-        if config in {'ctrigger', 'cmeasure'}: 
-            #create.ci(aename, 'config', config)
-            t1 = Thread(target=create.ci, args=(aename, 'config', config))
-            t1.start()
 
 def do_trigger_followup(aename):
     global ae,memory
@@ -783,7 +785,7 @@ def do_tick():
 
     for aename in schedule:
         if 'config' in schedule[aename]: 
-            do_config(schedule[aename]) # 수정부분
+            do_config()
             del schedule[aename]['config']
 
         elif 'reqstate' in schedule[aename]:
@@ -819,7 +821,7 @@ def startup():
         schedule[aename]['reqstate']=aename
 
     #this need once for one board
-    do_config({'aename':aename, 'config':'','save':'nosave'})
+    do_config()
 
 
 # schedule measureperiod
