@@ -194,6 +194,7 @@ def do_user_command(aename, jcmd):
             print(f"Invalid ctrigger command: {ckey} {k1}")
             state.report(aename)
             return
+
         k1=set(jcmd[ckey]) - {'sensitivity','offset','measureperiod','stateperiod','usefft'}
         if ckey=="cmeasure" and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
@@ -204,32 +205,32 @@ def do_user_command(aename, jcmd):
             state.report(aename)
             return
 
+        for k in jcmd[ckey]: ae[aename]['config'][ckey][k]=jcmd[ckey][k]
+
         if 'measureperiod' in jcmd[ckey]: 
             if not isinstance(jcmd[ckey]["measureperiod"],int):
                 ae[aename]['state']["abflag"]="Y"
                 ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]="measureperiod must be integer. defaulted to 600"
                 state.report(aename)
-                v=600
+                jcmd[ckey]['measureperiod']=600
             elif jcmd[ckey]["measureperiod"] < 600:
                 ae[aename]['state']["abflag"]="Y"
                 ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]="measureperiod must be bigger than 600. defaulted to 600"
                 state.report(aename)
-                v=600
+                jcmd[ckey]['measureperiod']=600
                 return
             elif jcmd[ckey]["measureperiod"]%600 != 0:
-                v = int(jcmd[ckey][x]/600)*600
                 ae[aename]['state']["abflag"]="Y"
                 ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {v} and accepted"
                 state.report(aename)
-            else:
-                v = jcmd[ckey]["measureperiod"]
+                jcmd[ckey]['measureperiod']= int(jcmd[ckey][x]/600)*600
+
             ae[aename]['config']['cmeasure']['measureperiod'] = v
 
-        if 'stateperiod' in jcmd[ckey]: 
-            ae[aename]['config']['cmeasure']['stateperiod'] = jcmd[ckey]['stateperiod']
+        for k in jcmd[ckey]: ae[aename]['config'][ckey][k] = jcmd[ckey][k]   
         setboard=False
         if ckey=='cmeasure' and 'offset' in jcmd[ckey]: 
             #print(f" {aename} {ckey} will write to board")

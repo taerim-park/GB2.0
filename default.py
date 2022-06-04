@@ -21,7 +21,7 @@ config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N','meas
 config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
 
 #                                    sec 600          min 60           min 60
-cmeasure2={'offset':0,'measureperiod':3600,'stateperiod':60,'rawperiod':60,
+cmeasure2={'offset':33,'measureperiod':3600,'stateperiod':60,'rawperiod':60,
         'st1min':2.1, 'st1max':2.6, 'st2min':3.01, 'st2max':4.01, 'st3min':5.01, 'st3max':6.01, 'st4min':7.01, 'st4max':8.01,
         'st5min':9.01, 'st5max':10.01, 'st6min':11.01, 'st6max':12.01, 'st7min':13.01, 'st7max':14.01, 'st8min':15.01, 'st8max':16.01,
         'st9min':17.01, 'st9max':18.01, 'st10min':19.01, 'st10max':20.01,'formula':'센서값*Factor+Offset'}
