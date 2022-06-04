@@ -1,4 +1,6 @@
+#!/usr/bin/bash
 ae=('ae.99998888-AC_S1M_01_X'  'ae.99998888-TI_S1M_01_X'  'ae.99998888-DI_S1M_01_X'  'ae.99998888-TP_S1M_01_X')
+ae=('ae.99998888-AC_S1M_01_X')
 
 for aename in ${ae[@]}; do 
     echo ==== Session starts for $aename
@@ -27,11 +29,18 @@ for aename in ${ae[@]}; do
     python3 actuate.py  ${aename} '{"cmd":"reqstate"}'
 
     if [[ ${aename} =~ "AC" ]]; then
-        echo; echo 5. setrigger
+        echo; echo 5. setrigger use st1high
         python3 actuate.py  ${aename}  '{"cmd":"settrigger","ctrigger":{"use":"N"}}'
         sleep 2
     
-        python3 actuate.py  ${aename}  '{"cmd":"settrigger","ctrigger":{"use":"Y",}}'
+        python3 actuate.py  ${aename}  '{"cmd":"settrigger","ctrigger":{"use":"Y","st1high":200}}'
+        sleep 2
+
+        echo; echo 6. cmeasure offset
+        python3 actuate.py  ${aename}  '{"cmd":"setmeasure","cmeasure":{"usefft":"N"}}'
+        sleep 2
+    
+        python3 actuate.py  ${aename}  '{"cmd":"setmeasure","cmeasure":{"usefft":"Y"}}'
         sleep 2
     fi
 
