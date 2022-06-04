@@ -6,7 +6,7 @@ from datetime import datetime
 
 def versionup(url):
     # url= http://damoa.io/upload/20220102.BIN
-    com = url.split('/')[-1].split('.')[0]
+    com = url.split('/')[-1][:-4]
     bfile = com+ '.BIN'
     file = com+ '.tar'
     print(f'bfile= {bfile}  file={file}')
