@@ -880,8 +880,14 @@ def schedule_stateperiod(aename1):
         elif not isinstance(cmeasure['stateperiod'],int): cmeasure['stateperiod']=60
         print(f"cmeasure.stateperiod= {cmeasure['stateperiod']} min")
 
-        schedule[aename]['state'] = boardTime+timedelta(minutes=cmeasure['stateperiod'])
-        print(f'state schedule[{aename}] at {schedule[aename]["state"]}')
+        onehour = (datetime.strptime(ae[aename]['local']['upTime'], '%Y-%m-%d %H:%M:%S')+timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
+        onehour1 = twohour[:-5]+'00:00'
+        onehour = datetime.strptime(onehour1, '%Y-%m-%d %H:%M:%S')
+        if cmeasure['stateperiod'] == 60 and boardTime < onehour:
+            schedule[aename]['state'] = onehour
+        else:
+            schedule[aename]['state'] = boardTime+timedelta(minutes=cmeasure['stateperiod'])
+            print(f'state schedule[{aename}] at {schedule[aename]["state"]}')
 
 def schedule_first():
     global schedule
