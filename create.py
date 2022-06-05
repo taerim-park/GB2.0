@@ -53,7 +53,6 @@ def ci(aename, cnt, subcnt):
 
 # (ae.323376-TP_A1_01_X, {'info','config'})
 def allci(aei, all):
-    global ae
     #print(f'create ci for containers= {all}')
     for cnti in ae[aei]:
         for subcnti in ae[aei][cnti]:

@@ -52,6 +52,7 @@ trigger_activated={}
 
 # single value for all ae
 gotBoardTime = False
+doneFirstShoot={}
 
 # 다중 데이터의 경우, 어떤 data를 저장할지 결정해야한다
 acc_axis = "x" # x, y, z중 택1
@@ -106,7 +107,7 @@ def jsonCreate(dataType, timeData, realData):
 # 파일명은 기본적으로 날짜
 
 def jsonSave(aename, jsonFile):
-    global memory, boardTime, schedule
+    global memory 
     mymemory = memory[aename]
     # remove microsec 2022-05-30 03:20:01.477113
     now_time = datetime.strptime(jsonFile['time'].split('.')[0],'%Y-%m-%d %H:%M:%S')
@@ -138,12 +139,11 @@ def jsonSave(aename, jsonFile):
 
 
 def save_conf(aename):
-    global ae, root
     with open(F"{root}/{aename}.conf","w") as f: f.write(json.dumps(ae[aename], ensure_ascii=False,indent=4))
     print(f"wrote {aename}.conf")
 
 def do_user_command(aename, jcmd):
-    global ae, schedule, root, boardTime
+    global ae, schedule
     print(f'got command= {jcmd}')
     cmd=jcmd['cmd']
     if 'reset' in cmd:
@@ -175,14 +175,10 @@ def do_user_command(aename, jcmd):
 
     elif cmd in {'measurestart'}:
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
-        #create.ci(aename, 'config', 'cmeasure')
-        t1 = Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
-        t1.start()
+        create.ci(aename, 'config', 'cmeasure')
     elif cmd in {'measurestop'}:
         ae[aename]['config']['cmeasure']['measurestate']='stopped'
-        #create.ci(aename, 'config', 'cmeasure')
-        t1 = Thread(target=create.ci, args=(aename, 'config', 'cmeasure'))
-        t1.start()
+        create.ci(aename, 'config', 'cmeasure')
     elif cmd in {'settrigger', 'setmeasure'}:
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
         k1=set(jcmd[ckey]) - {'use','mode','st1high','st1low','bfsec','afsec'}
@@ -241,24 +237,19 @@ def do_user_command(aename, jcmd):
             schedule[aename]['config']='doit'
             print(f"set {schedule[aename]['config']}")
         save_conf(aename)
-        #create.ci(aename, 'config', ckey)
-        t1 = Thread(target=create.ci, args=(aename, 'config', ckey))
-        t1.start()
+        create.ci(aename, 'config', ckey)
+        if 'stateperiod' in jcmd[ckey]: state.report(aename)
 
     elif cmd in {'settime'}:
         print(f'set time= {jcmd["time"]}')
         ae[aename]["config"]["time"]= jcmd["time"]
         save_conf(aename)
-        #create.ci(aename, 'config', 'time')
-        t1 = Thread(target=create.ci, args=(aename, 'config', 'time'))
-        t1.start()
+        create.ci(aename, 'config', 'time')
     elif cmd in {'setconnect'}:
         print(f'set {aename}/connect= {jcmd["connect"]}')
         for x in jcmd["connect"]:
             ae[aename]['config']["connect"][x]=jcmd["connect"][x]
-        #create.ci(aename, 'config', 'connect')
-        t1 = Thread(target=create.ci, args=(aename, 'config', 'connect'))
-        t1.start()
+        create.ci(aename, 'config', 'connect')
         save_conf(aename)
     elif cmd == 'inoon':
         cmd2=jcmd['cmd2']
@@ -282,7 +273,6 @@ def do_user_command(aename, jcmd):
         
 
 def got_callback(topic, msg):
-    global mqttc
     aename=topic[4] 
     if aename in ae:
         #print(topic, aename,  msg)
@@ -350,7 +340,6 @@ print("mqtt 연결에 성공했습니다.")
 # mqtt 전송을 수행합니다. 단, mqtt 전송을 사용하지 않기로 한 센서라면, 수행하지 않습니다.
 # 센서에 따라 다른 TOPIC에 mqtt 메시지를 publish합니다.
 def mqtt_sending(aename, data):   
-    global csename, boardTime, mqttc
     if mqttc=="":
         connect_mqtt()
 
@@ -409,7 +398,7 @@ def do_config():
         os._exit(0)
 
 def do_trigger_followup(aename):
-    global ae,memory
+    global ae
 
     #print(f'trigger_followup {aename}')
     dtrigger=ae[aename]['data']['dtrigger']
@@ -500,7 +489,7 @@ def do_capture(target):
 
     if j['Origin'] == 'CAPTURE' and j['Status'] == 'False':
         #print(f'device not ready {j}')
-        return 'err',0,0
+        return 'error',0,0
 
     if not 'Timestamp' in j:
         print(f"no Timestamp {j} at {datetime.now().strftime('%H:%M:%S')}")
@@ -607,10 +596,13 @@ def do_capture(target):
             dtrigger['start']=boardTime.strftime("%Y-%m-%d %H:%M:%S")
             dtrigger['count'] = 1
             
+            ''' 서버에서 계산합니다.
+            print(f"정적데이타offset연산  offset= {cmeasure['offset']}")
             if sensor_type(aename) == "DI": data = j["DI"][dis_channel]+cmeasure['offset']
             elif sensor_type(aename) == "TP": data = j["TP"]+cmeasure['offset']
             elif sensor_type(aename) == "TI": data = j["TI"][deg_axis]+cmeasure['offset'] # offset이 있는 경우, 합쳐주어야한다
             else: data = "nope"
+            '''
 
             #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
             dtrigger['val'] = data
@@ -643,6 +635,7 @@ def do_capture(target):
         "TI":0
     }
 
+    '''
     for aename in ae:
         # skip if not measuring
         if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
@@ -658,6 +651,7 @@ def do_capture(target):
             offset_dict["AC"] = cmeasure['offset']
         elif type == "TI" and 'offset' in cmeasure:
             offset_dict["TI"] = cmeasure['offset']
+    '''
 
     Time_data = j["Timestamp"]
     Temperature_data = j["TP"] + offset_dict["TP"]
@@ -772,6 +766,20 @@ def do_capture(target):
         stype = sensor_type(aename)
         jsonSave(aename, raw_json[stype])
 
+        #print(raw_json[stype]["time"])
+        global doneFirstShoot
+        if not aename in doneFirstShoot: doneFirstShoot[aename]=1
+        if doneFirstShoot[aename]>0:
+            doneFirstShoot[aename] -= 1
+            dmeasure = {}
+            dmeasure['val'] = raw_json[stype]["data"]
+            dmeasure['time'] = raw_json[stype]["time"]
+            dmeasure['type'] = "S"
+            ae[aename]['data']['dmeasure'] = dmeasure
+            #Timer(delay, create.ci, [aename, 'data', 'dmeasure']).start()
+            #print(f" creat data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
+            create.ci(aename, 'data', 'dmeasure')
+
     t1_msg += f' - doneSaving - {process_time()-t1_start:.1f}s' 
     #if process_time()-t1_start>0.5:
     #print(f'TIME {t1_msg}')
@@ -780,15 +788,23 @@ def do_capture(target):
 
 def do_tick():
     global schedule, boardTime, ae
-    stat, t1_start, t1_msg = do_capture('CAPTURE')
 
+    stat, t1_start, t1_msg = do_capture('CAPTURE')
+    if stat == 'error':
+        print('device not ready')
+        return
+
+    once=True
     for aename in schedule:
+
         if 'config' in schedule[aename]: 
             do_config()
             del schedule[aename]['config']
 
         elif 'reqstate' in schedule[aename]:
-            do_capture('STATUS')
+            if once:
+                once=False
+                do_capture('STATUS')
 
             ae[aename]['state']["abflag"]="N"
             if "abtime" in ae[aename]['state']: del ae[aename]['state']["abtime"]
@@ -813,19 +829,22 @@ def do_tick():
 
 def startup():
     global ae, schedule
+
+    #this need once for one board
+    do_config()
+
     print('create ci at boot')
+    once=True
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'})
         schedule[aename]['reqstate']=aename
 
-    #this need once for one board
-    do_config()
 
 
 # schedule measureperiod
 def schedule_measureperiod(aename1):
-    global ae, schedule, boardTime
+    global ae, schedule
     for aename in ae:
         if aename1 != "" and aename != aename1: continue
 
@@ -840,11 +859,18 @@ def schedule_measureperiod(aename1):
         cmeasure['rawperiod'] = int(cmeasure['measureperiod']/60)
         print(f"cmeasure.rawperiod= {cmeasure['rawperiod']} min")
 
-        schedule[aename]['measure'] = boardTime+timedelta(seconds=cmeasure['measureperiod'])
-        print(f'measure schedule[{aename}] at {schedule[aename]["measure"]}')
+        twohour = (datetime.strptime(ae[aename]['local']['upTime'], '%Y-%m-%d %H:%M:%S')+timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
+        twohour1 = twohour[:-5]+'00:00'
+        twohour = datetime.strptime(twohour1, '%Y-%m-%d %H:%M:%S')
+        if cmeasure['measureperiod'] == 3600 and boardTime < twohour:
+            schedule[aename]['measure'] = boardTime+timedelta(seconds=600)
+            print(f'measure schedule[{aename}] for first 2 hour special window at {schedule[aename]["measure"]}')
+        else:
+            schedule[aename]['measure'] = boardTime+timedelta(seconds=cmeasure['measureperiod'])
+            print(f'measure schedule[{aename}] at {schedule[aename]["measure"]}')
 
 def schedule_stateperiod(aename1):
-    global ae, schedule, boardTime
+    global ae, schedule
     for aename in ae:
         if aename1 != "" and aename != aename1: continue
 
@@ -858,21 +884,22 @@ def schedule_stateperiod(aename1):
         print(f'state schedule[{aename}] at {schedule[aename]["state"]}')
 
 def schedule_first():
-    global ae, schedule, boardTime
+    global schedule
     for aename in ae:
         sbtime = (boardTime+timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M:%S')
         sbtime1 = sbtime[:15]+'0:00'
         schedule[aename]['measure']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
         schedule[aename]['state']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
         print(f'{aename} set first schedule for measure, state at {boardTime} -> {schedule[aename]["state"]}')
-        slack(aename, json.dumps(ae[aename]))
+        #slack(aename, json.dumps(ae[aename]))
         #print(ae[aename])
 
 for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}
     trigger_activated[aename]=-1
     schedule[aename]={}
+    ae[aename]['local']['upTime']=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 print('Ready')
-Timer(3, startup).start()
+startup()
 RepeatedTimer(0.9, do_tick)
