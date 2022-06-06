@@ -31,6 +31,7 @@ import savedData
 import state
 
 from conf import csename, memory, ae, slack, port, host as broker, boardTime, supported_sensors, root, TOPIC_list
+dev_busy=0
 
 # head insert point  tail removing point
 
@@ -498,6 +499,8 @@ def do_capture(target):
     
     t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
 
+    global dev_busy
+    dev_busy=0
     boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S')
     if not gotBoardTime:
         gotBoardTime = True
@@ -787,11 +790,15 @@ def do_capture(target):
 
 
 def do_tick():
-    global schedule, boardTime, ae
+    global schedule, ae
 
     stat, t1_start, t1_msg = do_capture('CAPTURE')
     if stat == 'error':
-        print('device not ready')
+        global dev_busy
+        dev_busy+=1
+        #print('device not ready')
+        if dev_busy>3:
+            print(f'*** {dev_busy} consecuitive dev busy is not normal.')
         return
 
     once=True
@@ -813,14 +820,14 @@ def do_tick():
             state.report(aename)
             del schedule[aename]['reqstate']
 
-        try:
-            if schedule[aename]['state'] <= boardTime:
-                state.report(aename)
-                schedule_stateperiod(aename)
-        except:
-            print('got this error: boardTime= {boardTime}')
-            print(f'schedule.keys()= {schedule.keys()}')
-            print(ae)
+            try:
+                if schedule[aename]['state'] <= boardTime:
+                    state.report(aename)
+                    schedule_stateperiod(aename)
+            except:
+                print(f'got this error: boardTime= {boardTime}')
+                print(f'schedule.keys()= {schedule.keys()}')
+                #print(ae)
 
     if stat=='ok' and process_time()-t1_start>0.3:
         t1_msg += f' - doneChores - {process_time()-t1_start:.1f}s'

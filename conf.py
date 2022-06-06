@@ -16,7 +16,7 @@ from default import make_ae, ae, TOPIC_list, supported_sensors
 
 #bridge = 80061056 #placecode 설정을 위해 변수로 재설정
 #bridge = 42345141 #placecode 설정을 위해 변수로 재설정
-bridge = 32345141 #placecode 설정을 위해 변수로 재설정
+#bridge = 32345141 #placecode 설정을 위해 변수로 재설정
 #bridge = 80062056 #placecode 설정을 위해 변수로 재설정
 #bridge = 11001100 # 개인 테스트용
 bridge = 99998877
@@ -29,9 +29,9 @@ connect={"cseip":host,"cseport":7579,"csename":csename,"cseid":csename,"mqttip":
 make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
 #make_ae(F'ae.{bridge}-AC_S1M_02_X', csename, install, connect)
 #make_ae(F'ae.{bridge}-AC_S1M_03_X', csename, install, connect)
-make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
-make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
-make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
+#make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
+#make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
+#make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
 
 root='/home/pi/GB'
 for aename in ae:
