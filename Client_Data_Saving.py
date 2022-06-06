@@ -599,13 +599,20 @@ def do_capture(target):
             dtrigger['start']=boardTime.strftime("%Y-%m-%d %H:%M:%S")
             dtrigger['count'] = 1
             
-            ''' 서버에서 계산합니다.
+            # offset 은 서버에서 계산하다록 합니다. 현재는 클라이언트 2군데에서추가로 계산
+            # 그런데 아래부분이  data를 만들기 때문에 삭제하면 에러가 발생.  그래서 data만 만들어지도록 둡니다.
             print(f"정적데이타offset연산  offset= {cmeasure['offset']}")
+
+            '''
             if sensor_type(aename) == "DI": data = j["DI"][dis_channel]+cmeasure['offset']
             elif sensor_type(aename) == "TP": data = j["TP"]+cmeasure['offset']
             elif sensor_type(aename) == "TI": data = j["TI"][deg_axis]+cmeasure['offset'] # offset이 있는 경우, 합쳐주어야한다
             else: data = "nope"
             '''
+            if sensor_type(aename) == "DI": data = j["DI"][dis_channel]
+            elif sensor_type(aename) == "TP": data = j["TP"]
+            elif sensor_type(aename) == "TI": data = j["TI"][deg_axis]
+            else: data = "nope"
 
             #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
             dtrigger['val'] = data
