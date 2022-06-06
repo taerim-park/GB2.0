@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220604_V1.1111'
+VERSION='20220606_V1.20'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -324,7 +324,7 @@ def connect_mqtt():
         got_callback(topic, msg)
 
 
-    client_id = f'python-mqtt-{random.randint(0, 1000)}'
+    client_id = f'python-mqtt-{random.randint(0, 1000000)}'
     mqttc = mqtt.Client(client_id)
     mqttc.on_connect = on_connect
     mqttc.on_disconnect = on_disconnect
@@ -815,7 +815,7 @@ def do_tick():
             do_config()
             del schedule[aename]['config']
 
-        elif 'reqstate' in schedule[aename]:
+        if 'reqstate' in schedule[aename]:
             if once:
                 once=False
                 do_capture('STATUS')
@@ -827,14 +827,9 @@ def do_tick():
             state.report(aename)
             del schedule[aename]['reqstate']
 
-            try:
-                if schedule[aename]['state'] <= boardTime:
-                    state.report(aename)
-                    schedule_stateperiod(aename)
-            except:
-                print(f'got this error: boardTime= {boardTime}')
-                print(f'schedule.keys()= {schedule.keys()}')
-                #print(ae)
+        if schedule[aename]['state'] <= boardTime:
+            state.report(aename)
+            schedule_stateperiod(aename)
 
     if stat=='ok' and process_time()-t1_start>0.3:
         t1_msg += f' - doneChores - {process_time()-t1_start:.1f}s'
@@ -852,7 +847,6 @@ def startup():
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'})
-        schedule[aename]['reqstate']=aename
 
 
 
@@ -895,7 +889,7 @@ def schedule_stateperiod(aename1):
         print(f"cmeasure.stateperiod= {cmeasure['stateperiod']} min")
 
         onehour = (datetime.strptime(ae[aename]['local']['upTime'], '%Y-%m-%d %H:%M:%S')+timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
-        onehour1 = twohour[:-5]+'00:00'
+        onehour1 = onehour[:-5]+'00:00'
         onehour = datetime.strptime(onehour1, '%Y-%m-%d %H:%M:%S')
         if cmeasure['stateperiod'] == 60 and boardTime < onehour:
             schedule[aename]['state'] = onehour
