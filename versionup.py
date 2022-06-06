@@ -2,14 +2,26 @@ import requests
 import json
 import os
 import sys
+import create
+import state
 from datetime import datetime
+from conf import ae
 
-def versionup(url):
+def versionup(aename, url):
     # url= http://damoa.io/upload/20220102.BIN
     com = url.split('/')[-1][:-4]
     bfile = com+ '.BIN'
     file = com+ '.tar'
     print(f'bfile= {bfile}  file={file}')
+
+    if os.path.exists(com):
+        print(f'dup name rejected: {com}')
+        ae[aename]['state']["abflag"]="Y"
+        ae[aename]['state']["abtime"]=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ae[aename]['state']["abdesc"]=f"{url} rejected due to duplicated firmware update."
+        state.report(aename)
+        return
+        
 
     r = requests.get(url)
     if not r.status_code == 200:

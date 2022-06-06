@@ -161,7 +161,7 @@ def do_user_command(aename, jcmd):
         print('nothing to sync time')
     elif cmd in {'fwupdate'}:
         url= f'{jcmd["protocol"]}://{jcmd["ip"]}:{jcmd["port"]}{jcmd["path"]}'
-        versionup.versionup(url)
+        versionup.versionup(aename, url)
     elif cmd in {'realstart'}:
         print('start mqtt real tx')
         ae[aename]['local']['realstart']='Y'

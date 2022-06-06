@@ -10,8 +10,7 @@ csename='cse-gnrb-mon'
 host="218.232.234.232"  #건교부 테스트 사이트
 port=1883
 
-uploadhost='218.232.234.232'
-#uploadhost='m.damoa.io'
+uploadhost='m.damoa.io'
 uploadport=2883
 from default import make_ae, ae, TOPIC_list, supported_sensors
 
