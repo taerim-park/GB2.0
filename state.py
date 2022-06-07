@@ -17,7 +17,10 @@ def report(aename):
     m2=f'{100*(memory.total-memory.available)/memory.total:.1f}'
     state['memory']=float(m2)
     state['disk']= float(f"{psutil.disk_usage('/')[3]:.1f}")
-    state['time']= ae[aename]['local']['upTime']
+    if boardTime=="":
+        state['time']= datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        state['time']= boardTime.strftime("%Y-%m-%d %H:%M:%S")
 
     sec = time.time() - psutil.boot_time()
     days=int(sec/86400)
