@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220606_V1.20'
+VERSION='20220608_V1.21'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -186,17 +186,17 @@ def do_user_command(aename, jcmd):
         if ckey=="ctrigger" and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="Invlid key in ctrigger command: "
+            ae[aename]['state']["abdesc"]="Invalid key in ctrigger command: "
             for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
             print(f"Invalid ctrigger command: {ckey} {k1}")
             state.report(aename)
             return
 
-        k1=set(jcmd[ckey]) - {'sensitivity','offset','measureperiod','stateperiod','usefft'}
+        k1=set(jcmd[ckey]) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'samplerate'}
         if ckey=="cmeasure" and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="Invlid key in cmeasure command: "
+            ae[aename]['state']["abdesc"]="Invalid key in cmeasure command: "
             for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
             print(f"Invalid ctrigger command: {ckey} {k1}")
             state.report(aename)
@@ -221,9 +221,10 @@ def do_user_command(aename, jcmd):
             elif jcmd[ckey]["measureperiod"]%600 != 0:
                 ae[aename]['state']["abflag"]="Y"
                 ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {v} and accepted"
+                ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {int(jcmd[ckey][x]/600)*600} and accepted"
                 state.report(aename)
                 jcmd[ckey]['measureperiod']= int(jcmd[ckey][x]/600)*600
+
 
         for k in jcmd[ckey]: ae[aename]['config'][ckey][k] = jcmd[ckey][k]   
         setboard=False
@@ -243,7 +244,8 @@ def do_user_command(aename, jcmd):
 
     elif cmd in {'settime'}:
         print(f'set time= {jcmd["time"]}')
-        ae[aename]["config"]["time"]= jcmd["time"]
+        for x in jcmd['time']:
+             ae[aename]["config"]["time"][x]= jcmd["time"][x]
         save_conf(aename)
         create.ci(aename, 'config', 'time')
     elif cmd in {'setconnect'}:
@@ -425,12 +427,15 @@ def do_trigger_followup(aename):
     #print(f'found {len(data_path_list)} files')
 
     dtrigger['count']=len(data)
+    dtrigger['data']= data #data를 나누어 넣던 것을 원래대로 돌려놓았음
+    '''
     i=0
     dtrigger['data']='mobius can handle up to 6500 items. so data0, data1 are provided'
     for i in range(len(data)):
         if i*5000+5000>len(data): break
         dtrigger[f'data{i}']=data[i*5000:i*5000+5000]
     dtrigger[f'data{i}']=data[i*5000:]
+    '''
     dtrigger["start"] = start.strftime("%Y-%m-%d %H:%M:%S")
     #create.ci(aename, 'data', 'dtrigger')
     t1 = Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))

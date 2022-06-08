@@ -15,6 +15,9 @@ from threading import Timer, Thread
 import create
 from conf import ae, root, memory
 
+import zipfile
+from os.path import basename
+
 def sensor_type(aename):
     return aename.split('-')[1][0:2]
 
@@ -161,12 +164,20 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         port = ae[aename]['config']['connect']['uploadport']
         url = F"http://{host}:{port}/upload"
         print(f'{aename} upload url= {url} {file_name}')
+        
+        # 파일 압축 실행
+        zip_file_name = F"{file_name[:len(file_name)-4]}.zip"
+        zip_file = zipfile.ZipFile(zip_file_name, "w")
+        zip_file.write(file_name, basename(file_name), compress_type=zipfile.ZIP_DEFLATED)
+        zip_file.close()
+        print(f"file compression has completed > {zip_file_name}")
+
         try:
-            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(file_name, "rb")})
+            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")})
             print(f'TIMER: {aename} result= {r.text}')
         except:
-            print(f'TIMER: fail-to-upload {aename} file={file_name}')
-
+            print(f'TIMER: fail-to-upload {aename} file={zip_file_name}')
+    
     #upload(aename, f'{save_path}/{file_name}.bin')
     print(f'TIMER: upload +3s')
     Timer(3, upload).start()
