@@ -27,9 +27,9 @@ connect={"cseip":host,"cseport":7579,"csename":csename,"cseid":csename,"mqttip":
 
 # AC X,Y,Z can't coexist in current conf
 make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
 
 root='/home/pi/GB'
 for aename in ae:
