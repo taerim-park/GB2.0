@@ -34,8 +34,8 @@ print(f"created {ofile}")
 print(f"mail {ofile} to 건기원  담당자")
 
 #for internal test only
-print("아래는 내부 테스트용일 뿐")
-print(f'rcp {ofile} ubuntu@damoa.io:Web/public/update')
-os.system(f'rcp {ofile} ubuntu@damoa.io:Web/public/update')
-x=f'"cmd":"fwupdate","protocol":"HTTP","ip":"damoa.io","port":80,"path":"/update/{ofile}"'
-print(f"python3 actuate.py  AE  '{{{x}}}'")
+#print("아래는 내부 테스트용일 뿐")
+#print(f'rcp {ofile} ubuntu@damoa.io:Web/public/update')
+#os.system(f'rcp {ofile} ubuntu@damoa.io:Web/public/update')
+#x=f'"cmd":"fwupdate","protocol":"HTTP","ip":"damoa.io","port":80,"path":"/update/{ofile}"'
+#print(f"python3 actuate.py  AE  '{{{x}}}'")
