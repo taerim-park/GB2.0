@@ -85,24 +85,27 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     # boardTime 기준으로, 아직 지금 이순간 1초 데이타는 hold되고있지, Json 으로 저정되어있지 않다. 그래서 1부터.
     print(f'boardTime= {boardTime} ')
-    for i in range(1, 601): # 10분간 기간
+    # wrong... ㅠㅠ 시간이 뒤집어 지는 오류!
+    #for i in range(1, 601): # 1부터시작해서 600까지
+    once=False
+    for i in range(600, 0,-1): #600에서 시작해서 1까지
         key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
         # 가장 최근 데이터를 뽑아낸다, i=0이 정시 boardData 를 처리하기전으로 수정
-        if recent_data == "":
-            try:
-                recent_data = mymemory["file"][key]
-                print(f' got recent_data with {key}')
-            except:
-                print(f' failed recent_data len(mymemory["file"][{key}]= len(mymemory["file"][{key}])')
-        # 데이타가 600개가 되지 않을 경우도 있다. 그래서 계속 값지정. 마지막에 지정된 값이 시작시간이 된다.
-        start_time = boardTime - timedelta(seconds=i)
 
         if not key in mymemory["file"]:
-            print(f'{aename} no key= {key} i= {i}')
-            break
+            once=True
+            continue
+
+        if once: # partial data 의 경우 첫부분  key가 없을 수 있으며 이때만 시작점을 프린트
+            once=False
+            print(f' beginning valid key= {key}')
+            start_time = boardTime - timedelta(seconds=i)
+
+        # 데이타가 600개가 되지 않을 경우도 있다. 그래서 계속 값지정. 마지막에 지정된 값이 시작시간이 된다.
         json_data = mymemory["file"][key]
         if isinstance(json_data['data'], list): data_list.extend(json_data["data"])
         else: data_list.append(json_data["data"])
+    recent_data = json_data  # 마지막 데이타가 가장 최신
 
     t1_msg += f' - doneCollectData - {process_time()-t1_start:.1f}s'
 
