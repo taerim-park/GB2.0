@@ -1,4 +1,3 @@
-# 작성자 : ino-on, 주수아
 # 정해진 주기마다 가속도 데이터의 통계를 내, 모비우스 규약에 기반한 컨텐트인스턴스를 생성합니다.
 # FFT 연산을 사용하는 경우, FFT 연산 후 peak값에 해당하는 hrz를 반환하고, data->FFT 컨텐트인스턴스를 생성합니다.
 
@@ -11,6 +10,9 @@ from time import process_time
 import numpy as np
 import requests
 from threading import Timer, Thread
+
+import zipfile
+from os.path import basename
 
 import create
 from conf import ae, root, memory

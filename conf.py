@@ -43,7 +43,7 @@ for aename in ae:
                 print(e)
                 print(f'wrong {aename}.conf')
     else:
-        print(f'read {aename} from conf.py')
+        print(f'read {aename} from {aename}.conf')
 
 memory={}
 boardTime=""
