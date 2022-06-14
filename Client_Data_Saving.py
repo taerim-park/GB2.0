@@ -2,13 +2,14 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220608_V1.21'
+VERSION='20220608_V1.20'
 print('\n===========')
 print(f'Verion {VERSION}')
 
 from encodings import utf_8
 from threading import Timer, Thread
 import random
+from typing import Type
 import requests
 import json
 from socket import *
@@ -145,7 +146,35 @@ def save_conf(aename):
 
 def do_user_command(aename, jcmd):
     global ae, schedule
+
+    # boolean type_check(value, type)
+    # value가 입력된 자료형인지 검사합니다. 같을시 True, 틀릴시 False를 반환합니다.
+    # 예외로, double이 입력된 경우 float나 int 중 하나라면 True를 반환합니다. double value에 정수가 들어갈 수 있기 때문입니다.
+    def type_check(value, _type):
+        _int = 1
+        _double = 1.12 # 파이썬에서는 float
+        _string = "test"
+        _array = [1, 2, 3] # 파이썬에서는 list
+        if _type == "int":
+            return type(_int)==type(value)
+        elif _type == "double":
+            return (type(_double)==type(value) or type(_int)==type(value))
+        elif _type == "string":
+            return type(_string)==type(value)
+        elif _type == "array":
+            return type(_array)==type(value)
+        else: # type명이 틀린 경우, 일단 False를 반환
+            print("ERROR : inavailable type")
+            return False
+
     print(f'got command= {jcmd}')
+    if "cmd" not in jcmd: # 명령어에 키워드 "cmd"가 없는 경우, 오류 report
+        ae[aename]['state']["abflag"]="Y"
+        ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+        ae[aename]['state']["abdesc"]=F"there is no keyword: cmd"
+        print(F"there is no keyword: cmd")
+        state.report(aename)
+        return
     cmd=jcmd['cmd']
     if 'reset' in cmd:
         file=f"{root}/{aename}.conf"
@@ -173,16 +202,25 @@ def do_user_command(aename, jcmd):
         #do_capture('STATUS')
         schedule[aename]['reqstate']=aename
         print(f"schedule do_capture({aename}:{schedule[aename]})")
-
     elif cmd in {'measurestart'}:
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
         create.ci(aename, 'config', 'cmeasure')
     elif cmd in {'measurestop'}:
         ae[aename]['config']['cmeasure']['measurestate']='stopped'
         create.ci(aename, 'config', 'cmeasure')
+
+        ### 여기까지가 type check 필요없는 명령어들 ###
+
     elif cmd in {'settrigger', 'setmeasure'}:
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
-        k1=set(jcmd[ckey]) - {'use','mode','st1high','st1low','bfsec','afsec'}
+        if ckey not in jcmd: # 명령어 본문의 키워드가 맞지 않는 경우
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]=F"there is no keyword: {ckey}"
+            print(F"there is no keyword: {ckey}")
+            state.report(aename)
+            return
+        k1=set(jcmd[ckey]) - {'use','mode','st1high','st1low','bfsec','afsec'} #ctrigger 명령어의 키워드 유효성 검사
         if ckey=="ctrigger" and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
@@ -192,7 +230,7 @@ def do_user_command(aename, jcmd):
             state.report(aename)
             return
 
-        k1=set(jcmd[ckey]) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'samplerate'}
+        k1=set(jcmd[ckey]) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'samplerate'} #cmeasure 명령어의 키워드 유효성 검사
         if ckey=="cmeasure" and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
@@ -202,7 +240,56 @@ def do_user_command(aename, jcmd):
             state.report(aename)
             return
 
-        for k in jcmd[ckey]: ae[aename]['config'][ckey][k]=jcmd[ckey][k]
+        # keyword별 type 검사를 위한 딕셔너리
+        type_dict = {
+            ### ctrigger 시작###
+            "use":"string", 
+            "mode":"int", # time에도 존재. 같은 type이기에 따로 분리하지 않음
+            "st1high":"double",
+            "st1low":"double",
+            "bfsec":"int",
+            "afsec":"int",
+            ### ctrigger 끝, cmeasure 시작 ###
+            "sensitivity":"double",
+            "samplerate":"string",
+            "offset":"double",
+            # "measureperiod":"int", #measureperiod의 유효성은 하단에서 검사하므로 여기에서는 검사하지 않음
+            "stateperiod":"int",
+            "rawperiod":"int",
+            "usefft":"string",
+            "st1min":"double",
+            "st1max":"double",
+            ### cmeasure 끝, connect 시작 ###
+            "cseip":"string",
+            "cseport":"int",
+            "csename":"string",
+            "cseid":"string",
+            "mqttip":"string",
+            "mqttport":"int",
+            "uploadip":"string",
+            "uploadport":"int",
+            ### connect 끝, time 시작 ###
+            "zone":"string",
+            "ip":"string",
+            "port":"int",
+            "period":"int"
+            ### time 끝 ###
+            }
+        
+        isTypeWrong = False
+        TypeWrongMessage = "type error : "
+        for k in jcmd[ckey]: # keyword를 적용하기 전에 type이 옳은지 검사한다
+            if not type_check(jcmd[ckey][k], type_dict[k]): 
+                isTypeWrong = True
+                TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
+        # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
+        if isTypeWrong:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]=TypeWrongMessage
+            state.report(aename)
+            print(TypeWrongMessage)
+            return
 
         if 'measureperiod' in jcmd[ckey]: 
             if not isinstance(jcmd[ckey]["measureperiod"],int):
@@ -225,8 +312,8 @@ def do_user_command(aename, jcmd):
                 state.report(aename)
                 jcmd[ckey]['measureperiod']= int(jcmd[ckey][x]/600)*600
 
-
-        for k in jcmd[ckey]: ae[aename]['config'][ckey][k] = jcmd[ckey][k]   
+        for k in jcmd[ckey]:
+            ae[aename]['config'][ckey][k] = jcmd[ckey][k] # type check를 통과한 경우에만 새로운 설정값을 입력해넣는다
         setboard=False
         if ckey=='cmeasure' and 'offset' in jcmd[ckey]: 
             #print(f" {aename} {ckey} will write to board")
@@ -243,14 +330,56 @@ def do_user_command(aename, jcmd):
         if 'stateperiod' in jcmd[ckey]: state.report(aename)
 
     elif cmd in {'settime'}:
+        if "time" not in jcmd: # 명령어 본문의 키워드가 맞지 않는 경우
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]="there is no keyword: time"
+            print("there is no keyword: time")
+            state.report(aename)
+            return
         print(f'set time= {jcmd["time"]}')
-        for x in jcmd['time']:
+        isTypeWrong = False
+        TypeWrongMessage = "type error : "
+        for k in jcmd['time']: # keyword를 적용하기 전에 type이 옳은지 검사한다
+            if not type_check(jcmd[ckey][k], type_dict[k]): 
+                isTypeWrong = True
+                TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
+        # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
+        if isTypeWrong:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]=TypeWrongMessage
+            print(TypeWrongMessage)
+            state.report(aename)
+            return
+        for x in jcmd['time']: # type 검사에 성공했다면 설정값 입력
              ae[aename]["config"]["time"][x]= jcmd["time"][x]
         save_conf(aename)
         create.ci(aename, 'config', 'time')
     elif cmd in {'setconnect'}:
+        if "connect" not in jcmd: # 명령어 본문의 키워드가 맞지 않는 경우
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]="there is no keyword: connect"
+            print("there is no keyword: connect")
+            state.report(aename)
+            return
         print(f'set {aename}/connect= {jcmd["connect"]}')
-        for x in jcmd["connect"]:
+        isTypeWrong = False
+        TypeWrongMessage = "type error : "
+        for k in jcmd['connect']: # keyword를 적용하기 전에 type이 옳은지 검사한다
+            if not type_check(jcmd[ckey][k], type_dict[k]): 
+                isTypeWrong = True
+                TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
+        # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
+        if isTypeWrong:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]=TypeWrongMessage
+            print(TypeWrongMessage)
+            state.report(aename)
+            return
+        for x in jcmd["connect"]: # type 검사에 성공했다면 설정값 입력
             ae[aename]['config']["connect"][x]=jcmd["connect"][x]
         create.ci(aename, 'config', 'connect')
         save_conf(aename)
@@ -284,7 +413,11 @@ def got_callback(topic, msg):
         except:
             print(f"json error {msg}")
             return
-        jcmd=j["pc"]["m2m:sgn"]["nev"]["rep"]["m2m:cin"]["con"]
+        try:
+            jcmd=j["pc"]["m2m:sgn"]["nev"]["rep"]["m2m:cin"]["con"]
+        except KeyError as msg:
+            print(F"not available json : {jcmd}")
+            pass
         print(f" ==> {aename} {jcmd}")
         do_user_command(aename, jcmd)
 
@@ -428,14 +561,6 @@ def do_trigger_followup(aename):
 
     dtrigger['count']=len(data)
     dtrigger['data']= data #data를 나누어 넣던 것을 원래대로 돌려놓았음
-    '''
-    i=0
-    dtrigger['data']='mobius can handle up to 6500 items. so data0, data1 are provided'
-    for i in range(len(data)):
-        if i*5000+5000>len(data): break
-        dtrigger[f'data{i}']=data[i*5000:i*5000+5000]
-    dtrigger[f'data{i}']=data[i*5000:]
-    '''
     dtrigger["start"] = start.strftime("%Y-%m-%d %H:%M:%S")
     #create.ci(aename, 'data', 'dtrigger')
     t1 = Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
