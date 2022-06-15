@@ -167,6 +167,44 @@ def do_user_command(aename, jcmd):
             print("ERROR : inavailable type")
             return False
 
+    
+    # keyword별 type 검사를 위한 딕셔너리
+    type_dict = {
+        ### ctrigger 시작###
+        "use":"string", 
+        "mode":"int", # time에도 존재. 같은 type이기에 따로 분리하지 않음
+        "st1high":"double",
+        "st1low":"double",
+        "bfsec":"int",
+        "afsec":"int",
+        ### ctrigger 끝, cmeasure 시작 ###
+        "sensitivity":"double",
+        "samplerate":"string",
+        "offset":"double",
+        # "measureperiod":"int", #measureperiod의 유효성은 하단에서 검사하므로 여기에서는 검사하지 않음
+        "stateperiod":"int",
+        "rawperiod":"int",
+        "usefft":"string",
+        "st1min":"double",
+        "st1max":"double",
+        ### cmeasure 끝, connect 시작 ###
+        "cseip":"string",
+        "cseport":"int",
+        "csename":"string",
+        "cseid":"string",
+        "mqttip":"string",
+        "mqttport":"int",
+        "uploadip":"string",
+        "uploadport":"int",
+        ### connect 끝, time 시작 ###
+        "zone":"string",
+        "ip":"string",
+        "port":"int",
+        "period":"int"
+        ### time 끝 ###
+        }
+
+    
     print(f'got command= {jcmd}')
     if "cmd" not in jcmd: # 명령어에 키워드 "cmd"가 없는 경우, 오류 report
         ae[aename]['state']["abflag"]="Y"
@@ -239,42 +277,6 @@ def do_user_command(aename, jcmd):
             print(f"Invalid ctrigger command: {ckey} {k1}")
             state.report(aename)
             return
-
-        # keyword별 type 검사를 위한 딕셔너리
-        type_dict = {
-            ### ctrigger 시작###
-            "use":"string", 
-            "mode":"int", # time에도 존재. 같은 type이기에 따로 분리하지 않음
-            "st1high":"double",
-            "st1low":"double",
-            "bfsec":"int",
-            "afsec":"int",
-            ### ctrigger 끝, cmeasure 시작 ###
-            "sensitivity":"double",
-            "samplerate":"string",
-            "offset":"double",
-            # "measureperiod":"int", #measureperiod의 유효성은 하단에서 검사하므로 여기에서는 검사하지 않음
-            "stateperiod":"int",
-            "rawperiod":"int",
-            "usefft":"string",
-            "st1min":"double",
-            "st1max":"double",
-            ### cmeasure 끝, connect 시작 ###
-            "cseip":"string",
-            "cseport":"int",
-            "csename":"string",
-            "cseid":"string",
-            "mqttip":"string",
-            "mqttport":"int",
-            "uploadip":"string",
-            "uploadport":"int",
-            ### connect 끝, time 시작 ###
-            "zone":"string",
-            "ip":"string",
-            "port":"int",
-            "period":"int"
-            ### time 끝 ###
-            }
         
         isTypeWrong = False
         TypeWrongMessage = "type error : "
@@ -327,7 +329,7 @@ def do_user_command(aename, jcmd):
             print(f"set {schedule[aename]['config']}")
         save_conf(aename)
         create.ci(aename, 'config', ckey)
-        if 'stateperiod' in jcmd[ckey]: state.report(aename)
+        if 'stateperiod' in jcmd[ckey]:state.report(aename)
 
     elif cmd in {'settime'}:
         if "time" not in jcmd: # 명령어 본문의 키워드가 맞지 않는 경우
@@ -337,11 +339,20 @@ def do_user_command(aename, jcmd):
             print("there is no keyword: time")
             state.report(aename)
             return
+        k1=set(jcmd['time']) - {'ip', 'mode', 'period', 'port', 'zone'} #time 명령어의 키워드 유효성 검사
+        if len(k1)>0:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]="Invalid key in time command: "
+            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
+            print(f"Invalid time command: time {k1}")
+            state.report(aename)
+            return
         print(f'set time= {jcmd["time"]}')
         isTypeWrong = False
         TypeWrongMessage = "type error : "
         for k in jcmd['time']: # keyword를 적용하기 전에 type이 옳은지 검사한다
-            if not type_check(jcmd[ckey][k], type_dict[k]): 
+            if not type_check(jcmd['time'][k], type_dict[k]): 
                 isTypeWrong = True
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
@@ -364,11 +375,20 @@ def do_user_command(aename, jcmd):
             print("there is no keyword: connect")
             state.report(aename)
             return
+        k1=set(jcmd['connect']) - {'cseid', 'cseip', 'csename', 'cseport', 'mqttip', 'mqttport', 'uploadip', 'uploadport'} #connect 명령어의 키워드 유효성 검사
+        if len(k1)>0:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]="Invalid key in connect command: "
+            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
+            print(f"Invalid connect command: time {k1}")
+            state.report(aename)
+            return
         print(f'set {aename}/connect= {jcmd["connect"]}')
         isTypeWrong = False
         TypeWrongMessage = "type error : "
         for k in jcmd['connect']: # keyword를 적용하기 전에 type이 옳은지 검사한다
-            if not type_check(jcmd[ckey][k], type_dict[k]): 
+            if not type_check(jcmd['connect'][k], type_dict[k]): 
                 isTypeWrong = True
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
