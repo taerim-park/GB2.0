@@ -86,7 +86,7 @@ def make_ae(aename, csename, install, config_connect):
     ae[aename]['data']['dtrigger'].update(data_dtrigger)
     ae[aename]['data']['fft'].update(data_fft)
     ae[aename]['data']['dmeasure'].update(data_dmeasure)
-    ae[aename]['local']={'printtick':'N', 'realstart':'Y', 'name':aename, 'upTime':""}
+    ae[aename]['local']={'printtick':'N', 'realstart':'N', 'name':aename, 'upTime':""}
     TOPIC_list[aename]=F'/{csename}/{aename}/realtime'
 
 ctrl={'cmd':''}
