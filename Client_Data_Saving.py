@@ -970,9 +970,6 @@ def do_tick():
                 once=False
                 do_capture('STATUS')
             ae[aename]['state']["abflag"]="N"
-            if "abtime" in ae[aename]['state']: del ae[aename]['state']["abtime"]
-            if "abdesc" in ae[aename]['state']: del ae[aename]['state']["abdesc"]
-
             state.report(aename)
             del schedule[aename]['reqstate']
 
@@ -980,10 +977,7 @@ def do_tick():
             if once:
                 once=False
                 do_capture('STATUS')
-            ae[aename]['state']["abflag"]="N"
-            if "abtime" in ae[aename]['state']: del ae[aename]['state']["abtime"]
-            if "abdesc" in ae[aename]['state']: del ae[aename]['state']["abdesc"]
-                
+            ae[aename]['state']["abflag"]="N"         
             state.report(aename)
             schedule_stateperiod(aename)
 
