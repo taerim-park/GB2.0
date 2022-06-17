@@ -15,10 +15,10 @@ config_ctrigger["TI"]={"use":"N","mode":3,"st1high":5,"st1low":-5,"bfsec":0,"afs
 #{"use":"Y","mode":1,"st1high":200,"st1low":-2000,"st2high":"","st2low":"","st3high":"","st4low":"","lt4high":"","st5low":"","st5high":"","st5low":"","bfsec":30,"afsec":60}
 
 config_cmeasure={}                                                         #measuring  stopped   
-config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'N','measurestate':'measuring'}
-config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
-config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
-config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
+config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'N','measurestate':'stopped'}
+config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N','measurestate':'stopped'}
+config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N','measurestate':'stopped'}
+config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','measurestate':'stopped'}
 
 #                                    sec 600          min 60           min 60
 cmeasure2={'offset':0,'measureperiod':3600,'stateperiod':60,'rawperiod':60,
