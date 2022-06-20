@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220614_V1.22'
+VERSION='20220620_V1.26'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -181,7 +181,7 @@ def do_user_command(aename, jcmd):
         "sensitivity":"double",
         "samplerate":"string",
         "offset":"double",
-        # "measureperiod":"int", #measureperiod의 유효성은 하단에서 검사하므로 여기에서는 검사하지 않음
+        "measureperiod":"int", #measureperiod의 유효성은 하단에서 검사하나, key error 방지를 위해 dict에는 기입
         "stateperiod":"int",
         "rawperiod":"int",
         "usefft":"string",
@@ -202,7 +202,7 @@ def do_user_command(aename, jcmd):
         "port":"int",
         "period":"int"
         ### time 끝 ###
-        }
+    }
 
     
     print(f'got command= {jcmd}')
@@ -249,39 +249,60 @@ def do_user_command(aename, jcmd):
 
         ### 여기까지가 type check 필요없는 명령어들 ###
 
-    elif cmd in {'settrigger', 'setmeasure'}:
+    elif cmd in {'settrigger', 'setmeasure'}: # 220620갱신 : 본문에 바로 명령어가 작성된다는 점에 주의
+        if 'settrigger' in cmd:
+            command_key = 'settrigger'
+        elif 'setmeasure' in cmd:
+            command_key = 'setmeasure'
+
+        del jcmd["cmd"] # 검사 이전에 명령어만을 제외한다
+
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
-        if ckey not in jcmd: # 명령어 본문의 키워드가 맞지 않는 경우
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]=F"there is no keyword: {ckey}"
-            print(F"there is no keyword: {ckey}")
-            state.report(aename)
-            return
-        k1=set(jcmd[ckey]) - {'use','mode','st1high','st1low','bfsec','afsec'} #ctrigger 명령어의 키워드 유효성 검사
-        if ckey=="ctrigger" and len(k1)>0:
+        k1=set(jcmd) - {'use','mode','st1high','st1low','bfsec','afsec'} #ctrigger 명령어의 키워드 유효성 검사
+        if command_key == 'settrigger' and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
             ae[aename]['state']["abdesc"]="Invalid key in ctrigger command: "
             for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            print(f"Invalid ctrigger command: {ckey} {k1}")
+            print(f"Invalid ctrigger command: {k1}")
             state.report(aename)
             return
 
-        k1=set(jcmd[ckey]) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'samplerate'} #cmeasure 명령어의 키워드 유효성 검사
-        if ckey=="cmeasure" and len(k1)>0:
+        k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'samplerate'} #cmeasure 명령어의 키워드 유효성 검사
+        if command_key == 'setmeasure' and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
             ae[aename]['state']["abdesc"]="Invalid key in cmeasure command: "
             for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            print(f"Invalid ctrigger command: {ckey} {k1}")
+            print(f"Invalid ctrigger command: {k1}")
             state.report(aename)
             return
+
+        if 'measureperiod' in jcmd: 
+            if not isinstance(jcmd["measureperiod"],int):
+                ae[aename]['state']["abflag"]="Y"
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+                ae[aename]['state']["abdesc"]="measureperiod must be integer. defaulted to 600"
+                state.report(aename)
+                jcmd['measureperiod']=600
+            elif jcmd["measureperiod"] < 600:
+                ae[aename]['state']["abflag"]="Y"
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+                ae[aename]['state']["abdesc"]="measureperiod must be bigger than 600. defaulted to 600"
+                state.report(aename)
+                jcmd['measureperiod']=600
+                return
+            elif jcmd["measureperiod"]%600 != 0:
+                ae[aename]['state']["abflag"]="Y"
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+                ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {int(jcmd[x]/600)*600} and accepted"
+                state.report(aename)
+                jcmd['measureperiod']= int(jcmd[x]/600)*600
         
         isTypeWrong = False
         TypeWrongMessage = "type error : "
-        for k in jcmd[ckey]: # keyword를 적용하기 전에 type이 옳은지 검사한다
-            if not type_check(jcmd[ckey][k], type_dict[k]): 
+        for k in jcmd: # keyword를 적용하기 전에 type이 옳은지 검사한다
+            if not type_check(jcmd[k], type_dict[k]): 
                 isTypeWrong = True
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
@@ -293,34 +314,13 @@ def do_user_command(aename, jcmd):
             print(TypeWrongMessage)
             return
 
-        if 'measureperiod' in jcmd[ckey]: 
-            if not isinstance(jcmd[ckey]["measureperiod"],int):
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]="measureperiod must be integer. defaulted to 600"
-                state.report(aename)
-                jcmd[ckey]['measureperiod']=600
-            elif jcmd[ckey]["measureperiod"] < 600:
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]="measureperiod must be bigger than 600. defaulted to 600"
-                state.report(aename)
-                jcmd[ckey]['measureperiod']=600
-                return
-            elif jcmd[ckey]["measureperiod"]%600 != 0:
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {int(jcmd[ckey][x]/600)*600} and accepted"
-                state.report(aename)
-                jcmd[ckey]['measureperiod']= int(jcmd[ckey][x]/600)*600
-
-        for k in jcmd[ckey]:
-            ae[aename]['config'][ckey][k] = jcmd[ckey][k] # type check를 통과한 경우에만 새로운 설정값을 입력해넣는다
+        for k in jcmd:
+            ae[aename]['config'][ckey][k] = jcmd[k] # type check를 통과한 경우에만 새로운 설정값을 입력해넣는다
         setboard=False
-        if ckey=='cmeasure' and 'offset' in jcmd[ckey]: 
+        if ckey=='cmeasure' and 'offset' in jcmd: 
             #print(f" {aename} {ckey} will write to board")
             setboard=True
-        if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd[ckey].keys()) !=0: 
+        if ckey=='ctrigger' and len({'use','st1high', 'st1low'} & jcmd.keys()) !=0: 
             #print(f" {aename} {ckey} will write to board")
             setboard=True
         if setboard:
@@ -329,17 +329,11 @@ def do_user_command(aename, jcmd):
             print(f"set {schedule[aename]['config']}")
         save_conf(aename)
         create.ci(aename, 'config', ckey)
-        if 'stateperiod' in jcmd[ckey]:state.report(aename)
+        if 'stateperiod' in jcmd:state.report(aename)
 
     elif cmd in {'settime'}:
-        if "time" not in jcmd: # 명령어 본문의 키워드가 맞지 않는 경우
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="there is no keyword: time"
-            print("there is no keyword: time")
-            state.report(aename)
-            return
-        k1=set(jcmd['time']) - {'ip', 'mode', 'period', 'port', 'zone'} #time 명령어의 키워드 유효성 검사
+        del jcmd["cmd"]
+        k1=set(jcmd) - {'ip', 'mode', 'period', 'port', 'zone'} #time 명령어의 키워드 유효성 검사
         if len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
@@ -348,11 +342,11 @@ def do_user_command(aename, jcmd):
             print(f"Invalid time command: time {k1}")
             state.report(aename)
             return
-        print(f'set time= {jcmd["time"]}')
+        print(f'set time= {jcmd}')
         isTypeWrong = False
         TypeWrongMessage = "type error : "
-        for k in jcmd['time']: # keyword를 적용하기 전에 type이 옳은지 검사한다
-            if not type_check(jcmd['time'][k], type_dict[k]): 
+        for k in jcmd: # keyword를 적용하기 전에 type이 옳은지 검사한다
+            if not type_check(jcmd[k], type_dict[k]): 
                 isTypeWrong = True
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
@@ -363,28 +357,22 @@ def do_user_command(aename, jcmd):
             print(TypeWrongMessage)
             state.report(aename)
             return
-        for x in jcmd['time']: # type 검사에 성공했다면 설정값 입력
-             ae[aename]["config"]["time"][x]= jcmd["time"][x]
+        for x in jcmd: # type 검사에 성공했다면 설정값 입력
+             ae[aename]["config"]["time"][x]= jcmd[x]
         save_conf(aename)
         create.ci(aename, 'config', 'time')
     elif cmd in {'setconnect'}:
-        if "connect" not in jcmd: # 명령어 본문의 키워드가 맞지 않는 경우
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="there is no keyword: connect"
-            print("there is no keyword: connect")
-            state.report(aename)
-            return
-        k1=set(jcmd['connect']) - {'cseid', 'cseip', 'csename', 'cseport', 'mqttip', 'mqttport', 'uploadip', 'uploadport'} #connect 명령어의 키워드 유효성 검사
+        del jcmd["cmd"]
+        k1=set(jcmd) - {'cseid', 'cseip', 'csename', 'cseport', 'mqttip', 'mqttport', 'uploadip', 'uploadport'} #connect 명령어의 키워드 유효성 검사
         if len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
             ae[aename]['state']["abdesc"]="Invalid key in connect command: "
             for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            print(f"Invalid connect command: time {k1}")
+            print(f"Invalid connect command: connect {k1}")
             state.report(aename)
             return
-        print(f'set {aename}/connect= {jcmd["connect"]}')
+        print(f'set {aename}/connect= {jcmd}')
         isTypeWrong = False
         TypeWrongMessage = "type error : "
         for k in jcmd['connect']: # keyword를 적용하기 전에 type이 옳은지 검사한다
@@ -399,8 +387,8 @@ def do_user_command(aename, jcmd):
             print(TypeWrongMessage)
             state.report(aename)
             return
-        for x in jcmd["connect"]: # type 검사에 성공했다면 설정값 입력
-            ae[aename]['config']["connect"][x]=jcmd["connect"][x]
+        for x in jcmd: # type 검사에 성공했다면 설정값 입력
+            ae[aename]['config']["connect"][x]=jcmd[x]
         create.ci(aename, 'config', 'connect')
         save_conf(aename)
     elif cmd == 'inoon':
@@ -935,7 +923,13 @@ def do_capture(target):
             dmeasure['val'] = raw_json[stype]["data"]
             dmeasure['time'] = raw_json[stype]["time"]
             dmeasure['type'] = "S"
+            '''
+            if stype == "AC" or stype == "DS" or stype == "SS":
+                dmeasure['type'] = "D"
+            else:
+                dmeasure['type'] = "S"
             ae[aename]['data']['dmeasure'] = dmeasure
+            '''
             #Timer(delay, create.ci, [aename, 'data', 'dmeasure']).start()
             #print(f" creat data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
             create.ci(aename, 'data', 'dmeasure')
@@ -991,7 +985,7 @@ def startup():
 
     #this need once for one board
     do_config()
-
+    do_capture('STATUS')
     print('create ci at boot')
     once=True
     for aename in ae:
