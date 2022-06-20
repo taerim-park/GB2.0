@@ -31,9 +31,10 @@ def report(aename):
     sec=int(sec%60)
 
     state['uptime']= f'{days}days, {hours:02}:{mins:02}:{sec:02}'
-    if state["abflag"]=="N":
-        if "abtime" in state: del state["abtime"]
-        if "abdesc" in state: del state["abdesc"]
+    if "abflag" in state:
+        if state["abflag"]=="N":
+            if "abtime" in state: del state["abtime"]
+            if "abdesc" in state: del state["abdesc"]
 
     #print('update', state)
     # board에서 가져온 battery는 이미 ae값에 저장되어 여기서 사용
