@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220620_V1.26'
+VERSION='20220621_V1.27'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -178,6 +178,7 @@ def do_user_command(aename, jcmd):
         "bfsec":"int",
         "afsec":"int",
         ### ctrigger 끝, cmeasure 시작 ###
+        "formula":"string",
         "sensitivity":"double",
         "samplerate":"string",
         "offset":"double",
@@ -187,6 +188,24 @@ def do_user_command(aename, jcmd):
         "usefft":"string",
         "st1min":"double",
         "st1max":"double",
+        "st2min":"double",
+        "st2max":"double",
+        "st3min":"double",
+        "st3max":"double",
+        "st4min":"double",
+        "st4max":"double",
+        "st5min":"double",
+        "st5max":"double",
+        "st6min":"double",
+        "st6max":"double",
+        "st7min":"double",
+        "st7max":"double",
+        "st8min":"double",
+        "st8max":"double",
+        "st9min":"double",
+        "st9max":"double",
+        "st10min":"double",
+        "st10max":"double",
         ### cmeasure 끝, connect 시작 ###
         "cseip":"string",
         "cseport":"int",
@@ -268,7 +287,8 @@ def do_user_command(aename, jcmd):
             state.report(aename)
             return
 
-        k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'samplerate'} #cmeasure 명령어의 키워드 유효성 검사
+        #cmeasure 명령어의 키워드 유효성 검사
+        k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'st2max', 'st2min', 'st3max', 'st3min', 'st4max', 'st4min', 'st5max', 'st5min', 'st6max', 'st6min', 'st7max', 'st7min', 'st8max', 'st8min', 'st9max', 'st9min', 'st10max', 'st10min','formula', 'samplerate'}
         if command_key == 'setmeasure' and len(k1)>0:
             ae[aename]['state']["abflag"]="Y"
             ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
@@ -329,7 +349,9 @@ def do_user_command(aename, jcmd):
             print(f"set {schedule[aename]['config']}")
         save_conf(aename)
         create.ci(aename, 'config', ckey)
-        if 'stateperiod' in jcmd:state.report(aename)
+        if 'stateperiod' in jcmd:
+            ae[aename]['state']["abflag"]="N"
+            state.report(aename)
 
     elif cmd in {'settime'}:
         del jcmd["cmd"]
@@ -424,7 +446,7 @@ def got_callback(topic, msg):
         try:
             jcmd=j["pc"]["m2m:sgn"]["nev"]["rep"]["m2m:cin"]["con"]
         except KeyError as msg:
-            print(F"not available json : {jcmd}")
+            print(F"not available json : {j}")
             pass
         print(f" ==> {aename} {jcmd}")
         do_user_command(aename, jcmd)
@@ -818,7 +840,7 @@ def do_capture(target):
     #현재 가속도 센서에만 적용중
     for aename in ae:
         # acceleration의 경우, samplerate가 100이 아닌 경우에 대처한다
-        if sensor_type(aename)=="AC":
+        if sensor_type(aename)=="AC" or sensor_type(aename)=="DS" or sensor_type(aename)=="SS":
             ae_samplerate = float(ae[aename]["config"]["cmeasure"]["samplerate"])
             if ae_samplerate != 100:
                 if 100%ae_samplerate != 0:
@@ -922,14 +944,11 @@ def do_capture(target):
             dmeasure = {}
             dmeasure['val'] = raw_json[stype]["data"]
             dmeasure['time'] = raw_json[stype]["time"]
-            dmeasure['type'] = "S"
-            '''
             if stype == "AC" or stype == "DS" or stype == "SS":
                 dmeasure['type'] = "D"
             else:
                 dmeasure['type'] = "S"
             ae[aename]['data']['dmeasure'] = dmeasure
-            '''
             #Timer(delay, create.ci, [aename, 'data', 'dmeasure']).start()
             #print(f" creat data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
             create.ci(aename, 'data', 'dmeasure')
