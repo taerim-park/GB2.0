@@ -447,7 +447,7 @@ def got_callback(topic, msg):
             jcmd=j["pc"]["m2m:sgn"]["nev"]["rep"]["m2m:cin"]["con"]
         except KeyError as msg:
             print(F"not available json : {j}")
-            pass
+            return
         print(f" ==> {aename} {jcmd}")
         do_user_command(aename, jcmd)
 
