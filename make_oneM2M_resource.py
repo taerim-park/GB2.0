@@ -53,19 +53,20 @@ def makeit():
         break
     
     print('Query AE: ')
-    found=False
+    aeToMake = list()
     for aename in ae:
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}"
         r = requests.get(url, headers=h)
         j=r.json()
         if "m2m:ae" in j:
             print('found', r.json()["m2m:ae"]["rn"])
-            found = True
-    if found:
+        else:
+            aeToMake.append(aename)
+    if len(aeToMake) == 0:
         return
     
-    for aename in ae:
-        print('Found no AE. Create fresh one')
+    for aename in aeToMake:
+        print(F'Found no AE -->{aename}  Create fresh one')
         c=ae[aename]['config']['connect']
         h={
             "Accept": "application/json",
@@ -92,7 +93,7 @@ def makeit():
     
     print('\nCreate Container ')
     
-    for aename in ae:
+    for aename in aeToMake:
         c=ae[aename]['config']['connect']
         h={
             "Accept": "application/json",

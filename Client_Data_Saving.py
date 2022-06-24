@@ -13,7 +13,6 @@ from typing import Type
 import requests
 import json
 from socket import *
-import select
 import os
 import sys
 import time
@@ -30,6 +29,7 @@ import versionup
 import make_oneM2M_resource
 import savedData
 import state
+import camera
 
 from conf import csename, memory, ae, slack, port, host as broker, boardTime, supported_sensors, root, TOPIC_list
 dev_busy=0
@@ -249,11 +249,27 @@ def do_user_command(aename, jcmd):
         url= f'{jcmd["protocol"]}://{jcmd["ip"]}:{jcmd["port"]}{jcmd["path"]}'
         versionup.versionup(aename, url)
     elif cmd in {'realstart'}:
-        print('start mqtt real tx')
-        ae[aename]['local']['realstart']='Y'
+        if sensor_type(aename) == "CM":
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]=F"type CM does not support such command : realstart"
+            print(F"type CM does not support such command : realstart")
+            state.report(aename)
+            return
+        else:
+            print('start mqtt real tx')
+            ae[aename]['local']['realstart']='Y'
     elif cmd in {'realstop'}:
-        print('stop mqtt real tx')
-        ae[aename]['local']['realstart']='N'
+        if sensor_type(aename) == "CM":
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]=F"type CM does not support such command : realstop"
+            print(F"type CM does not support such command : realstop")
+            state.report(aename)
+            return
+        else:
+            print('stop mqtt real tx')
+            ae[aename]['local']['realstart']='N'
     elif cmd in {'reqstate'}:
         # 얘는 board에서 읽어오는 부분이있다. 
         #do_capture('STATUS')
@@ -262,15 +278,25 @@ def do_user_command(aename, jcmd):
     elif cmd in {'measurestart'}:
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
         create.ci(aename, 'config', 'cmeasure')
+        save_conf(aename)
     elif cmd in {'measurestop'}:
         ae[aename]['config']['cmeasure']['measurestate']='stopped'
         create.ci(aename, 'config', 'cmeasure')
+        save_conf(aename)
 
         ### 여기까지가 type check 필요없는 명령어들 ###
 
     elif cmd in {'settrigger', 'setmeasure'}: # 220620갱신 : 본문에 바로 명령어가 작성된다는 점에 주의
         if 'settrigger' in cmd:
-            command_key = 'settrigger'
+            if sensor_type(aename) == "CM": # 카메라는 trigger 설정을 지원하지 않음
+                ae[aename]['state']["abflag"]="Y"
+                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+                ae[aename]['state']["abdesc"]=F"type CM does not support such command : settrigger"
+                print(F"type CM does not support such command : settrigger")
+                state.report(aename)
+                return
+            else:
+                command_key = 'settrigger'
         elif 'setmeasure' in cmd:
             command_key = 'setmeasure'
 
@@ -413,6 +439,16 @@ def do_user_command(aename, jcmd):
             ae[aename]['config']["connect"][x]=jcmd[x]
         create.ci(aename, 'config', 'connect')
         save_conf(aename)
+    elif cmd == 'takepicture':
+        if sensor_type(aename) == "CM":
+            camera.take_picture_command(boardTime, aename) # 사진을 찍어 올린다
+        else:
+            ae[aename]['state']["abflag"]="Y"
+            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+            ae[aename]['state']["abdesc"]=F"type {sensor_type(aename)} does not support such command : takepicture"
+            print(F"type {sensor_type(aename)} does not support such command : takepicture")
+            state.report(aename)
+            return
     elif cmd == 'inoon':
         cmd2=jcmd['cmd2']
         if cmd2=="ae": 
@@ -539,20 +575,21 @@ time_old=datetime.now()
 def do_config():
     print(f'do_config()')
 
-    setting={ 'AC':{'select':0x0100,'use':'N','st1high':0,'st1low':0, 'offset':0},
-                'DI':{'select':0x0800,'use':'N','st1high':0,'st1low':0, 'offset':0},
-                'TI':{'select':0x0200,'use':'N','st1high':0,'st1low':0, 'offset':0},
-                'TP':{'select':0x1000,'use':'N','st1high':0,'st1low':0, 'offset':0}}
+    setting={ 'AC':{'use':'N','st1high':0,'st1low':0, 'offset':0},
+                'DI':{'use':'N','st1high':0,'st1low':0, 'offset':0},
+                'TI':{'use':'N','st1high':0,'st1low':0, 'offset':0},
+                'TP':{'use':'N','st1high':0,'st1low':0, 'offset':0}}
     for aename in ae:
-        cmeasure = ae[aename]['config']['cmeasure']
-        if 'offset' in cmeasure:
-            setting[sensor_type(aename)]['offset'] = cmeasure['offset']
-        ctrigger = ae[aename]['config']['ctrigger']
-        if 'use' in ctrigger:
-            setting[sensor_type(aename)]['use'] = ctrigger['use']
-            if 'st1high' in ctrigger: setting[sensor_type(aename)]['st1high']= ctrigger['st1high']
-            if 'st1low' in ctrigger: setting[sensor_type(aename)]['st1low']= ctrigger['st1low']
-    #print(f"do_config board seting= {setting}")
+        if sensor_type(aename) != 'CM':
+            cmeasure = ae[aename]['config']['cmeasure']
+            if 'offset' in cmeasure:
+                setting[sensor_type(aename)]['offset'] = cmeasure['offset']
+            ctrigger = ae[aename]['config']['ctrigger']
+            if 'use' in ctrigger:
+                setting[sensor_type(aename)]['use'] = ctrigger['use']
+                if 'st1high' in ctrigger: setting[sensor_type(aename)]['st1high']= ctrigger['st1high']
+                if 'st1low' in ctrigger: setting[sensor_type(aename)]['st1low']= ctrigger['st1low']
+        #print(f"do_config board seting= {setting}")
 
     if connect() == 'no': 
         print('do_config: connect() failed. return.')
@@ -666,10 +703,12 @@ def do_capture(target):
         gotBoardTime = True
         schedule_first()
 
-    #print(f"trigger= {j['trigger']}")
+    # print(f"trigger= {j['trigger']}"
 
-    for aename in ae:
-
+    # start of trigger
+    for aename in ae: 
+        if sensor_type(aename) == "CM": # 카메라는 trigger동작을 하지 않기 때문에 넘긴다
+            continue
         ctrigger=ae[aename]['config']['ctrigger']
         cmeasure=ae[aename]['config']['cmeasure']
         dtrigger=ae[aename]['data']['dtrigger']
@@ -723,7 +762,7 @@ def do_capture(target):
             continue
 
         # 새로운 trigger 처리
-        if sensor_type(aename) == "AC": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
+        if sensor_type(aename) == "AC" or sensor_type(aename) == "DS": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
             trigger_list = j["AC"]
             trigger_data = "unknown"
             for ac in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
@@ -837,9 +876,9 @@ def do_capture(target):
         
     #print(F"acc : {acc_list}")
     #samplerate에 따라 파일에 저장되는 data 조정
-    #현재 가속도 센서에만 적용중
+    #현재 가속도 센서와 변형률 센서에 적용중
     for aename in ae:
-        # acceleration의 경우, samplerate가 100이 아닌 경우에 대처한다
+        # 동적 데이터의 경우, samplerate가 100이 아닌 경우에 대처한다
         if sensor_type(aename)=="AC" or sensor_type(aename)=="DS" or sensor_type(aename)=="SS":
             ae_samplerate = float(ae[aename]["config"]["cmeasure"]["samplerate"])
             if ae_samplerate != 100:
@@ -898,7 +937,10 @@ def do_capture(target):
 
             if schedule[aename]['measure'] <= boardTime:
                 # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
-                stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+                if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
+                    stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+                else:
+                    t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
                 schedule_measureperiod(aename)
             else:
                 print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min. clear 10 minute long data.")
@@ -916,6 +958,7 @@ def do_capture(target):
 
         # stype 은 'AC' 와 같은 부분
         stype = sensor_type(aename)
+        if stype == 'CM' : continue # 카메라는 mqtt 전송을 시행하지 않음
         #print(f"mqtt {aename} {stype} {ae[aename]['local']['realstart']}")
         if ae[aename]['local']['realstart']=='Y':  # mqtt_realtime is controlled from remote user
             payload = raw_json[stype]["data"]
@@ -934,6 +977,7 @@ def do_capture(target):
         if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
 
         stype = sensor_type(aename)
+        if stype == 'CM' : continue # 카메라는 json 전송을 시행하지 않음
         jsonSave(aename, raw_json[stype])
 
         #print(raw_json[stype]["time"])

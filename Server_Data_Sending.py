@@ -482,7 +482,7 @@ def do_command(command, param):
         print('WRONG COMMAND: ', command)
         fail_data = {"Status":"False","Reason":"Wrong Command"}
         sending_data = json.dumps(fail_data, ensure_ascii=False)
-        flag=Falseflag = False
+        flag=False
     
     if flag:
         #sending_data += '\n\n'
