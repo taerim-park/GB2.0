@@ -16,10 +16,10 @@ config_ctrigger["CM"]={} # CM은 ctrigger를 사용하지 않음
 #{"use":"Y","mode":1,"st1high":200,"st1low":-2000,"st2high":"","st2low":"","st3high":"","st4low":"","lt4high":"","st5low":"","st5high":"","st5low":"","bfsec":30,"afsec":60}
 
 config_cmeasure={}                                                         #measuring  stopped   
-config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'N','measurestate':'stopped'}
-config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N','measurestate':'stopped'}
-config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N','measurestate':'stopped'}
-config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','measurestate':'stopped'}
+config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'N','measurestate':'measuring'}
+config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
+config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
+config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
 config_cmeasure["CM"]={'measurestate':'stopped'} # CM은 cmeasure의 일부 스테이터스만 사용함.
 
 #                                     sec 600          min 60           min 60

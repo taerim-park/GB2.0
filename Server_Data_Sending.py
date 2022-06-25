@@ -9,8 +9,6 @@
 import spidev
 import time
 import numpy as np
-import socket
-import select
 import json
 import math
 import sys
@@ -18,7 +16,11 @@ from datetime import datetime
 from datetime import timedelta
 import re
 import os
-from RepeatedTimer import RepeatedTimer
+import logging
+from flask import Flask, request, json
+app= Flask(__name__)
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 import signal
 def sigint_handler(signal, frame):
@@ -335,9 +337,7 @@ def data_receiving():
         json_data["Status"]="Ok"
         return json_data
 
-def set_config_data(config_data):
-    jdata = json.loads(config_data)
-
+def set_config_data(jdata):
     print(f'CONFIG wrote to board')
     for x in jdata: print(x, jdata[x])
 
@@ -427,127 +427,39 @@ def get_status_data():
     return(status_data)
 
     
-def do_command(command, param):
+@app.route('/sync')
+def sync():
+    return {"Status":"Ok", "Timestamp": sync_time(), "Origin":"sync"}
 
-    # init
-    flag = True
-    data = {}
-    
-    # main
-    if command=="RESYNC":
-        ok_data = {"Status":"Ok", "Timestamp": sync_time()}
-        ok_data['Origin'] = command
-        #sending_data = json.dumps(ok_data, ensure_ascii=False)
-        print(f'sync {ok_data["Timestamp"]}')
-        flag = False
+@app.route('/capture')
+def capture():
+    data = data_receiving()
+    data['Origin']='capture'
+    return data
 
-    elif command=="START":
-        flag = False
-    elif command == "STOP":
-        flag = False
-    elif command=="RESET":
-        flag = False
-    
-    elif command=="CAPTURE":
-        # CAPTURE 명령어를 받으면, 센서 데이터를 포함한 json file을 client에 넘깁니다.
-        data = data_receiving()
-        data['Origin']=command
-        sending_data = json.dumps(data, ensure_ascii=False) 
+@app.route('/status')
+def status():
+    data=get_status_data()
+    data["Status"]="Ok"
+    data["Origin"]='status'
+    return data
 
-    elif command=="STATUS":
-        d=get_status_data()
-        d["Status"]="Ok"
-        d["Origin"]=command
-        sending_data = json.dumps(d, ensure_ascii=False)
-        #print('query board with state info')
+@app.route('/config', methods=['GET', 'POST'])
+def config():
+    sending_config_data = [0x09]
+    Config_data = set_config_data(request.json)
+    print(Config_data, flush=True)
 
-    elif command=="CONFIG":
-        sending_config_data = [0x09]
-        Config_data = set_config_data(param)
-        #print(Config_data)
+    # assuming all values are two bytes
+    for tmp in Config_data.values():
+        # convert order to GBC parsing
+        #sending_config_data.append(tmp >> 8)
+        #sending_config_data.append(tmp & 0xFF)
+        sending_config_data.append(tmp & 0xff) 
+        sending_config_data.append(tmp >> 8)
+    rcv = spi.xfer2(sending_config_data)
 
-        # assuming all values are two bytes
-        for tmp in Config_data.values():
-            # convert order to GBC parsing
-            #sending_config_data.append(tmp >> 8)
-            #sending_config_data.append(tmp & 0xFF)
-            sending_config_data.append(tmp & 0xff) 
-            sending_config_data.append(tmp >> 8)
-        rcv = spi.xfer2(sending_config_data)
-        ok_data = {"Status":"Ok"}
-        ok_data['Origin'] = command
-        sending_data = json.dumps(ok_data, ensure_ascii=False)
-        flag = False
-    else:
-        print('WRONG COMMAND: ', command)
-        fail_data = {"Status":"False","Reason":"Wrong Command"}
-        sending_data = json.dumps(fail_data, ensure_ascii=False)
-        flag=False
-    
-    if flag:
-        #sending_data += '\n\n'
-        client_socket.sendall(sending_data.encode()) # encode UTF-8
-        #print("Server -> Client :  ", sending_data)
-    
-#
-# Handing socket and commands
-#
+    return {"Status":"Ok", "Origin":"config"}
 
-HOST = ''     # allow all
-PORT = 50000  # Use PORT 50000
-
-# Server socket
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server_socket.bind((HOST, PORT))
-server_socket.settimeout(10)
-server_socket.listen(1)
-while True:
-    try:
-        client_socket,addr = server_socket.accept()
-        print("Socket ready to listen")
-        break
-    except OSError as msg:
-        print('got found no client connection. keep waiting..')
-        continue
-
-#client_socket.setblocking(False)
-
-# 소켓 클라이언트와 연결
-
-session_active = False
-
-def watchdog():
-    global session_active
-    if not session_active:
-        print('found session freeze, exiting..')
-        os._exit(0)
-    session_active = False
-
-RepeatedTimer(60, watchdog)
-
-time_old=datetime.now()
-sync_time()
-while(1) :
-    # read Command
-    if select.select([client_socket], [], [], 0.01)[0]: #ready? return in 0.01 sec
-        try:
-            data = client_socket.recv(1024).decode().strip()
-            if not data:
-                print('socket troubled. exiting..')
-                os._exit(0)
-        except:
-            print('socket raised exception. exiting..')
-            os._exit(0)
-        m=re.match("(\w+)(.*)", data)
-        #print(m.groups())
-        if m:
-            cmd=m.groups()[0]
-            if len(m.groups())>1:
-                param=m.groups()[1]
-        else:
-            continue
-        session_active = True
-
-        if not cmd.startswith('CAPTURE'): print(f'got {cmd} at {datetime.now().strftime("%H:%M:%S")}')
-        do_command(cmd, param)
+if __name__ == '__main__':
+    app.run()

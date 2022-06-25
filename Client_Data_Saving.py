@@ -12,7 +12,6 @@ import random
 from typing import Type
 import requests
 import json
-from socket import *
 import os
 import sys
 import time
@@ -72,23 +71,6 @@ signal.signal(signal.SIGINT, sigint_handler)
 def sensor_type(aename):
     return aename.split('-')[1][0:2]
 
-client_socket=""
-
-def connect():
-    global client_socket
-    if client_socket=="":
-        client_socket= socket(AF_INET, SOCK_STREAM)
-        client_socket.settimeout(5)
-        try:
-            client_socket.connect(('127.0.0.1', 50000))
-        except:
-            print('got no connection')
-            return 'no'
-        print("socket pi연결에 성공했습니다.")
-    return "yes"
-
-if connect()=='no':
-    os._exit(0)
 
 make_oneM2M_resource.makeit()
 print('done any necessary Mobius resource creation')
@@ -272,9 +254,9 @@ def do_user_command(aename, jcmd):
             ae[aename]['local']['realstart']='N'
     elif cmd in {'reqstate'}:
         # 얘는 board에서 읽어오는 부분이있다. 
-        #do_capture('STATUS')
-        schedule[aename]['reqstate']=aename
-        print(f"schedule do_capture({aename}:{schedule[aename]})")
+        do_status()
+        ae[aename]['state']["abflag"]="N"
+        state.report(aename)
     elif cmd in {'measurestart'}:
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
         create.ci(aename, 'config', 'cmeasure')
@@ -371,8 +353,7 @@ def do_user_command(aename, jcmd):
             setboard=True
         if setboard:
             # 얘는 board에 설정하는 부분이 있다.
-            schedule[aename]['config']='doit'
-            print(f"set {schedule[aename]['config']}")
+            do_config()
         save_conf(aename)
         create.ci(aename, 'config', ckey)
         if 'stateperiod' in jcmd:
@@ -591,14 +572,13 @@ def do_config():
                 if 'st1low' in ctrigger: setting[sensor_type(aename)]['st1low']= ctrigger['st1low']
         #print(f"do_config board seting= {setting}")
 
-    if connect() == 'no': 
-        print('do_config: connect() failed. return.')
+    r = requests.post('http://localhost:5000/config', json=setting)
+    if not r.status_code==200:
+        print(F"got do_config {r.status_code} skip")
         return
-    try:
-        client_socket.sendall(("CONFIG"+json.dumps(setting, ensure_ascii=False)).encode())
-    except OSError as msg:
-        print(f"socket error {msg} exiting..")
-        os._exit(0)
+    j= r.json()
+    print(f"got j={j}")
+
 
 def do_trigger_followup(aename):
     global ae
@@ -634,69 +614,49 @@ def do_trigger_followup(aename):
     t1.start()
     print(f"comiled trigger data: {len(data)} bytes for bfsec+afsec= {ctrigger['bfsec']+ctrigger['afsec']}")
 
-session_active = False
-def watchdog():
-    global session_active
-    if not session_active:
-        print('found server capture session freeze, exiting..')
-        os._exit(0)
-    session_active = False
-RepeatedTimer(60, watchdog)
+
+def do_status():
+    r = requests.get('http://localhost:5000/status')
+    if not r.status_code==200:
+        print("got do_status {r.statue_code} skip")
+        return
+    j= r.json()
+    print(f"got j={j}")
+    if not j['Status']=='Ok':
+        print(f"got do_status error")
+        return
+
+    for aename in ae:
+        ae[aename]['state']['battery']=j['battery']
 
 
-def do_capture(target):
-    global client_socket, mqtt_measure, time_old
-    global trigger_activated, session_active
+def do_capture():
+    global mqtt_measure, time_old
+    global trigger_activated
     global ae
     global boardTime, gotBoardTime, schedule
 
     t1_start=process_time()
     t1_msg="0s"
     #print('do capture')
-    if connect() == 'no':
-        return 'err',0,0
-    try:
-        client_socket.sendall(target.encode()) # deice server로 'CAPTURE' 명령어를 송신합니다.
-        rData = client_socket.recv(20000)
-    except OSError as msg:
-        print(f"socket error {msg} exiting..")
-        os._exit(0)
 
-    rData = rData.decode('utf_8')
-    try:
-        j = json.loads(rData) # j : 서버로부터 받은 json file을 dict 형식으로 변환한 것
-    except ValueError:
-        print(f"no json: skip. rData={rData}")
-        return 'err',0,0
+    r = requests.get('http://localhost:5000/capture')
+    if not r.status_code==200:
+        print("got do_capture {r.statue_code} skip")
+        return
 
-    session_active=True
-
-    if not 'Origin' in j:
-        print(f'No Origin  {j}')
-        return 'err',0,0
-
-    if j['Origin']=='STATUS' and j['Status']=='Ok':
-        #print(f'got STATUS return ok')
-        for aename in ae:
-            ae[aename]['state']['battery']=j['battery']
-        return 'err',0,0
-
-    if 'Origin' in j and j['Origin'] in {'RESYNC','STATUS','CONFIG'}:
-        print(f'got result {j}')
-        return 'err',0,0
-
-    if j['Origin'] == 'CAPTURE' and j['Status'] == 'False':
-        #print(f'device not ready {j}')
-        return 'error',0,0
-
-    if not 'Timestamp' in j:
-        print(f"no Timestamp {j} at {datetime.now().strftime('%H:%M:%S')}")
-        return 'err',0,0
-
-    
-    t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
+    j= r.json()
+    #print(f"got j={j}")
 
     global dev_busy
+    if j['Status'] == 'False':
+        dev_busy +=1
+        if dev_busy > 1: print(f'device busy {dev_busy}')
+        return 
+
+    t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
+
+    # receive good data
     dev_busy=0
     boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S')
     if not gotBoardTime:
@@ -745,20 +705,20 @@ def do_capture(target):
 
         # skip if not for me
         if j['trigger'][sensor_type(aename)]=='0': 
-            tmsg +=  f" not-for-me-{aename}-skip"
+            #tmsg +=  f" not-for-me-{aename}-skip"
             #print(tmsg)
             continue
 
         # skip if not measuring
         if cmeasure['measurestate'] != 'measuring':
-            tmsg += f" not-measuring-{aename}-skip"
-            print(tmsg)
+            #tmsg += f" not-measuring-{aename}-skip"
+            #print(tmsg)
             continue
 
         # skip if not enabled
         if ctrigger['use'] not in {'Y','y'}:
-            tmsg+= f" not-enabled-{aename}-skip"
-            print(tmsg)
+            #tmsg+= f" not-enabled-{aename}-skip"
+            #print(tmsg)
             continue
 
         # 새로운 trigger 처리
@@ -921,15 +881,6 @@ def do_capture(target):
     if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
         m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
         print(f'GOT 10s minutes')
-        time.sleep(0.001)
-        # resync board clock first
-        if connect() == 'no':
-            return 'err',0,0
-        try:
-            client_socket.sendall("RESYNC".encode()) # deice server로 "RESYNC" 명령어를 송신합니다.
-        except OSError as msg:
-            print(f"socket error {msg} exiting..")
-            os._exit(0)
 
         for aename in ae:
             # skip if not measuring
@@ -945,6 +896,12 @@ def do_capture(target):
             else:
                 print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min. clear 10 minute long data.")
                 memory[aename]['file']={}
+
+        # 매 데이타 처리후에 sync 실시
+        r = requests.get('http://localhost:5000/sync')
+        if not r.status_code==200:
+            print(F"got do_sync {r.statue_code} ")
+
     # 데이타 전송처리 끝
     t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
 
@@ -998,57 +955,32 @@ def do_capture(target):
             create.ci(aename, 'data', 'dmeasure')
 
     t1_msg += f' - doneSaving - {process_time()-t1_start:.1f}s' 
-    #if process_time()-t1_start>0.5:
-    #print(f'TIME {t1_msg}')
-    return 'ok', t1_start, t1_msg
+    if process_time()-t1_start>0.6:
+        print(f'TIME {t1_msg}')
 
 
 def do_tick():
     global schedule, ae
 
-    stat, t1_start, t1_msg = do_capture('CAPTURE')
-    if stat == 'error':
-        global dev_busy
-        dev_busy+=1
-        #print('device not ready')
-        if dev_busy>3:
-            print(f'*** {dev_busy} consecuitive dev busy is not normal.')
-        return
+    do_capture()
 
     once=True
     for aename in schedule:
-
-        if 'config' in schedule[aename]: 
-            do_config()
-            del schedule[aename]['config']
-
-        if 'reqstate' in schedule[aename]:
-            if once:
-                once=False
-                do_capture('STATUS')
-            ae[aename]['state']["abflag"]="N"
-            state.report(aename)
-            del schedule[aename]['reqstate']
-
         if schedule[aename]['state'] <= boardTime:
             if once:
                 once=False
-                do_capture('STATUS')
+                do_status()
             ae[aename]['state']["abflag"]="N"         
             state.report(aename)
             schedule_stateperiod(aename)
 
-    if stat=='ok' and process_time()-t1_start>0.3:
-        t1_msg += f' - doneChores - {process_time()-t1_start:.1f}s'
-        print(t1_msg)
-        
 
 def startup():
     global ae, schedule
 
     #this need once for one board
     do_config()
-    do_capture('STATUS')
+    do_status()
     print('create ci at boot')
     once=True
     for aename in ae:

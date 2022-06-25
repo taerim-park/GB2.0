@@ -87,8 +87,6 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     # boardTime 기준으로, 아직 지금 이순간 1초 데이타는 hold되고있지, Json 으로 저정되어있지 않다. 그래서 1부터.
     print(f'boardTime= {boardTime} ')
-    # wrong... ㅠㅠ 시간이 뒤집어 지는 오류!
-    #for i in range(1, 601): # 1부터시작해서 600까지
     once=False
     start_time=''
     for i in range(600, 0,-1): #600에서 시작해서 1까지
@@ -108,6 +106,15 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         json_data = mymemory["file"][key]
         if isinstance(json_data['data'], list): data_list.extend(json_data["data"])
         else: data_list.append(json_data["data"])
+
+    if start_time=='':
+        print(f" failed. no data. sart_time==null")
+        return 'ok', t1_start, t1_msg
+
+    if 'json_data' not in locals():
+        print(f"no json_data in locals() ")
+        return 'ok', t1_start, t1_msg
+
     recent_data = json_data  # 마지막 데이타가 가장 최신
 
     t1_msg += f' - doneCollectData - {process_time()-t1_start:.1f}s'
