@@ -18,8 +18,8 @@ from default import make_ae, ae, TOPIC_list, supported_sensors
 #bridge = 42345141 #placecode 설정을 위해 변수로 재설정
 #bridge = 32345141 #placecode 설정을 위해 변수로 재설정
 #bridge = 80062056 #placecode 설정을 위해 변수로 재설정
-#bridge = 11001100 # 개인 테스트용
-bridge = 99998877
+bridge = 11001100 # 개인 테스트용
+#bridge = 99998877
 
 install= {"date":"2022-04-25","place":"금남2교(하)","placecode":F"{bridge}","location":"6.7m(P2~P3)","section":"최우측 거더","latitude":"37.657248","longitude":"127.359962","aetype":"D"}
 #connect={"cseip":host,"cseport":7579,"csename":csename,"cseid":csename,"mqttip":host,"mqttport":port,"uploadip":uploadhost,"uploadport":uploadport}
@@ -30,6 +30,7 @@ make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
 make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
 make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
 make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-CM_S1M_01_X', csename, install, connect)
 
 root='/home/pi/GB'
 for aename in ae:
