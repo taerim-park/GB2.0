@@ -106,7 +106,7 @@ def jsonSave(aename, jsonFile):
     while sec>0:
         mymemory["head"] = mymemory["head"] + timedelta(seconds=1)
         mymemory["file"][mymemory["head"].strftime('%Y-%m-%d-%H%M%S')]=jsonFile
-        if sec>1: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} extra')
+        if sec>1: print(f'{aename} json cover missing one by adding key={mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len={len(mymemory["file"])}')
         else: 
             rpitime = datetime.now()
             if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= {(rpitime - boardTime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%H:%M:%S")} state= {schedule[aename]["state"].strftime("%H:%M:%S")})')
@@ -226,7 +226,7 @@ def do_user_command(aename, jcmd):
     elif 'reboot' in cmd:
         os.system("sudo reboot")
     elif cmd in {'synctime'}:
-        print('nothing to sync time')
+        do_timesync()
     elif cmd in {'fwupdate'}:
         url= f'{jcmd["protocol"]}://{jcmd["ip"]}:{jcmd["port"]}{jcmd["path"]}'
         versionup.versionup(aename, url)
@@ -614,6 +614,10 @@ def do_trigger_followup(aename):
     t1.start()
     print(f"comiled trigger data: {len(data)} bytes for bfsec+afsec= {ctrigger['bfsec']+ctrigger['afsec']}")
 
+def do_timesync():
+    r = requests.get('http://localhost:5000/sync')
+    if not r.status_code==200:
+        print(F"got do_timesync {r.statue_code} ")
 
 def do_status():
     r = requests.get('http://localhost:5000/status')
@@ -636,6 +640,7 @@ def do_capture():
     global ae
     global boardTime, gotBoardTime, schedule
 
+    t0_start=process_time()
     t1_start=process_time()
     t1_msg="0s"
     #print('do capture')
@@ -659,6 +664,7 @@ def do_capture():
     # receive good data
     dev_busy=0
     boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S')
+    print(f"boardTime@capture= {boardTime.strftime('%H:%M:%S')} rpiTime= {datetime.now().strftime('%H:%M:%S')} counter={j['counter']} {(datetime.now()-boardTime).total_seconds():.1f}")
     if not gotBoardTime:
         gotBoardTime = True
         schedule_first()
@@ -898,9 +904,7 @@ def do_capture():
                 memory[aename]['file']={}
 
         # 매 데이타 처리후에 sync 실시
-        r = requests.get('http://localhost:5000/sync')
-        if not r.status_code==200:
-            print(F"got do_sync {r.statue_code} ")
+        do_timesync()
 
     # 데이타 전송처리 끝
     t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
@@ -955,12 +959,12 @@ def do_capture():
             create.ci(aename, 'data', 'dmeasure')
 
     t1_msg += f' - doneSaving - {process_time()-t1_start:.1f}s' 
-    if process_time()-t1_start>0.6:
-        print(f'TIME {t1_msg}')
+    if process_time()-t0_start>0.5:
+        print(f'TIME do_capture {t1_msg}')
 
 
 def do_tick():
-    global schedule, ae
+    global ae
 
     do_capture()
 
@@ -976,16 +980,16 @@ def do_tick():
 
 
 def startup():
-    global ae, schedule
+    global ae
 
     #this need once for one board
     do_config()
     do_status()
     print('create ci at boot')
-    once=True
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'})
+    do_timesync()
 
 
 

@@ -22,6 +22,9 @@ app= Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
+            #counter            #counter          #시간
+Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
+
 import signal
 def sigint_handler(signal, frame):
     print()
@@ -60,16 +63,19 @@ def send_data(cmd) :
     #print(f'RXD= {RXD}')
     return RXD
 
+
 def time_conversion(stamp):
-    global BaseTimeStamp
-    global BaseTime
-    #t_delta = BaseTimeStamp - stamp    
+    global Time_Stamp
 
-    #t_delta = stamp- BaseTimeStamp     
-    #return str(BaseTime + timedelta(milliseconds = t_delta))
+    if Time_Stamp["TimeStamp"]==0:
+        # Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
+        x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
+        Time_Stamp["TimeStamp"]=stamp
+        Time_Stamp["OldTimeStamp"]=stamp-1000
 
-    c_delta = stamp - BaseTimeStamp
-    return (BaseTime + timedelta(milliseconds = c_delta)).strftime("%Y-%m-%d %H:%M:%S")
+    c_delta = stamp - Time_Stamp["TimeStamp"]
+    return (Time_Stamp["BaseTime"] + timedelta(milliseconds = c_delta)).strftime("%Y-%m-%d %H:%M:%S")
 
 def status_conversion(solar, battery, vdd):
     solar   = 0.003013 * solar + 1.2824
@@ -79,22 +85,25 @@ def status_conversion(solar, battery, vdd):
     return solar, battery, vdd
 
 def sync_time():
-    global BaseTime
-    global BaseTimeStamp
+    # DO NOTHING, time is broght from data packet
+    pass
+
+    global Time_Stamp
     
     for i in range(5):
-        BaseTime = datetime.now()
         time.sleep(ds)  
         spi.xfer2([0x27])
         time.sleep(ds)  
         status_data_i_got = spi.xfer2([0x0]*14)
-
-        BaseTimeStamp = status_data_i_got[3] << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0]  - TimeCorrection
-        if BaseTimeStamp > 0: break
-        print(f'INVALID BaseTimeStamp= {BaseTimeStamp}  try again')
-
-    print(f'syc_time BaseTime= {BaseTime}  BaseTimeStamp= {BaseTimeStamp}')
-    return str(BaseTime)
+   
+        Time_Stamp["TimeStamp"] = status_data_i_got[3] << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0]  - TimeCorrection
+        if Time_Stamp["TimeStamp"] > 0: break
+        print(f'INVALID Time_Stamp["TimeStamp"]= {Time_Stamp["TimeStamp"]}  try again')
+    
+    x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
+    print(f"syc_time BaseTime= {Time_Stamp['BaseTime'].strftime('%H:%M:%S')}  Time_Stamp['TimeStamp']= {Time_Stamp['TimeStamp']}")
+    return Time_Stamp["BaseTime"].strftime("%Y-%m-%d %H:%M:%S")
 
 # int Twos_Complement(string data, int length)
 # bit data를 int data로 바꾸어줍니다.
@@ -239,8 +248,7 @@ num_of_DATA = 2
 
 Config_datas = {}        # config data 담을 dict
 Status_datas = {}        # status data 담을 dict
-BaseTimeStamp = 0
-BaseTime = datetime.now()   # basetime , 처음 동작할 때 다시 초기화함
+
 TimeCorrection = int(ds * 1000) # FIXME
 
 # AE별 global offset value, defaulted to 0
@@ -251,6 +259,7 @@ Offset={'AC':0,'DI':0,'TI':0,'TP':0}
 # return value는 모든 센서 데이터를 포함하고 있는 dictionary 데이터입니다.
 def data_receiving():
     global Offset
+    global Time_Stamp
     #print("s:0x24")        # request header
     rcv1 = spi.xfer2([0x24])
     #print("header data signal")
@@ -267,8 +276,19 @@ def data_receiving():
         json_data = {}
         #print("data is ready")
         status = basic_conversion(rcv2[2:4]) #status info save
-        timestamp = time_conversion(int(basic_conversion(rcv2[4:8]),16)) #timestamp info save.
+        time_counter = int(basic_conversion(rcv2[4:8]),16)
+        if Time_Stamp["OldTimeStamp"]>time_counter:
+            print(f"time_count just got old.. ㅠ")
+            Time_Stamp["TimeStamp"]=0
+
+        # board not err 발생시 time_counter가 리셋되어 10이 온다.
+        timestamp = time_conversion(time_counter) #timestamp info save.
+
         json_data["Timestamp"] = timestamp
+        json_data["count"] = time_counter - Time_Stamp["OldTimeStamp"]
+        json_data["counter"] = time_counter
+
+        Time_Stamp["OldTimeStamp"] = time_counter
         #print("trigger status : ", status_trigger_return(status)) #trigger 작동여부 출력 테스트 코드
         json_data["trigger"] = status_trigger_return(status)
     else:
@@ -429,7 +449,8 @@ def get_status_data():
     
 @app.route('/sync')
 def sync():
-    return {"Status":"Ok", "Timestamp": sync_time(), "Origin":"sync"}
+    Time_Stamp["TimeStamp"]==0
+    return {"Status":"Ok", "Origin":"sync"}
 
 @app.route('/capture')
 def capture():
