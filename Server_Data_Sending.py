@@ -278,7 +278,7 @@ def data_receiving():
         status = basic_conversion(rcv2[2:4]) #status info save
         time_counter = int(basic_conversion(rcv2[4:8]),16)
         if Time_Stamp["OldTimeStamp"]>time_counter:
-            print(f"time_count just got old.. ㅠ")
+            print(f"resync timer-counter for recovering timer-reset ")
             Time_Stamp["TimeStamp"]=0
 
         # board not err 발생시 time_counter가 리셋되어 10이 온다.

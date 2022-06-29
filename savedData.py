@@ -23,6 +23,26 @@ from os.path import basename
 def sensor_type(aename):
     return aename.split('-')[1][0:2]
 
+def remove_old_data(aename, boardTime):
+    global memory
+    # reserve some data for trigger follow-up
+    
+    mymemory=memory[aename]
+    r1=""
+    r2=""
+    for i in range(60, 1000): # 전 1분간의 데이타를 save해둔다. 
+        key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
+        if key in mymemory["file"]: 
+            del mymemory["file"][key]
+            if r1=="": 
+                r1=key
+                c1=i
+        else:
+            r2= (boardTime - timedelta(seconds=i-1)).strftime("%Y-%m-%d-%H%M%S")
+            c2=i-1
+            break
+    print(f"at 10m interval remove-old-data from= {r2} to= {r1} count={c2-c1+1}")
+
 # double FFT(cmeasure, data_list)
 # 리스트의 가장 오래된 1024개의 데이터를 받아, FFT 연산을 시행합니다.
 # cmeasure에 기록된 st1min, st1max를 기반으로 peak을 찾아내어, peak에 해당하는 헤르츠를 찾아냅니다.
@@ -196,13 +216,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     Timer(3, upload).start()
     #print(f'{aename} uploaded a file elapsed= {process_time()-point1:.1f}s')
 
-    # reserve some data for trigger follow-up
-    for i in range(60, 1000): # 전 1분간의 데이타를 save해둔다. 
-        key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
-        if key in mymemory["file"]: del mymemory["file"][key]
-        else:
-            print(f'done removing break at {i} {key}')
-            break
+    remove_old_data(aename, boardTime)
 
     t1_msg += f' - doneUploadFile - {process_time()-t1_start:.1f}s'
 
