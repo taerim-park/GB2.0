@@ -20,7 +20,7 @@ config_cmeasure['AC']={'sensitivity':20,'samplerate':"100",'usefft':'N','measure
 config_cmeasure['DI']={'sensitivity':24,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
 config_cmeasure['TP']={'sensitivity':16,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
 config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','measurestate':'measuring'}
-config_cmeasure["CM"]={'measurestate':'stopped'} # CM은 cmeasure의 일부 스테이터스만 사용함.
+config_cmeasure["CM"]={'measurestate':'measuring'} # CM은 cmeasure의 일부 스테이터스만 사용함.
 
 #                                     sec 600          min 60           min 60
 cmeasure2={'offset':0,'measureperiod':3600,'stateperiod':60,'rawperiod':60,
