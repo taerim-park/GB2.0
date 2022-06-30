@@ -269,7 +269,7 @@ def data_receiving():
     rcv2 = spi.xfer2([0x40]*8) # follow up action
     time.sleep(ds)
     #print(rcv2)
-    print(F"{datetime.now().strftime('%H:%M:%S')} got {len(rcv2)}B {rcv2}")
+    print(F"\n{datetime.now().strftime('%H:%M:%S')} got {len(rcv2)}B {rcv2}", end=' ')
     
     if rcv2[0] == 216 and rcv2[1] == 216:
         isReady = True
@@ -299,13 +299,13 @@ def data_receiving():
     if isReady: #only send data if data is ready
         #print("s:"+ "0x26")        # request static
         rcv3 = spi.xfer2([0x26])
-        #print(rcv3)
+        print(rcv3, end=' ')
         #print("static sensor data signal")
         time.sleep(ds)
 
         #print("s:"+ "0x40")
         rcv4 = spi.xfer2([0x40]*16) # follow up action
-        #print(rcv4)
+        print(rcv4, end=' ')
         degreeX = deg_conversion(rcv4[0:2]) + Offset['TI'] 
         degreeY = deg_conversion(rcv4[2:4]) + Offset['TI'] 
         degreeZ = deg_conversion(rcv4[4:6]) + Offset['TI'] 
@@ -355,7 +355,8 @@ def data_receiving():
         for x in json_data['trigger']:
             if  json_data['trigger'][x]=='1': s1 += f' {x}:1'
         json_data["Status"]="Ok"
+        #print(json_data)
         return json_data
 
 while True:
-   data_receiving() 
+    j=data_receiving() 
