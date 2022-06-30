@@ -616,8 +616,7 @@ def do_trigger_followup(aename):
 
 def do_timesync():
     r = requests.get('http://localhost:5000/sync')
-    if not r.status_code==200:
-        print(F"got do_timesync {r.statue_code} ")
+    print(F"do_timesync {r.json()}")
 
 def do_status():
     r = requests.get('http://localhost:5000/status')
@@ -897,7 +896,7 @@ def do_capture():
                 # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
                 if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
                     stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
-                    do_timesync=True
+                    timesync=True
                 else:
                     t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
                 schedule_measureperiod(aename)
@@ -991,7 +990,6 @@ def startup():
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'})
-    do_timesync()
 
 
 

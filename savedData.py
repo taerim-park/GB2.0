@@ -30,6 +30,8 @@ def remove_old_data(aename, boardTime):
     mymemory=memory[aename]
     r1=""
     r2=""
+    c1=0
+    c2=0
     for i in range(60, 1000): # 전 1분간의 데이타를 save해둔다. 
         key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
         if key in mymemory["file"]: 
