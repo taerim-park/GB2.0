@@ -253,6 +253,7 @@ TimeCorrection = int(ds * 1000) # FIXME
 
 # AE별 global offset value, defaulted to 0
 Offset={'AC':0,'DI':0,'TI':0,'TP':0}
+old=datetime.now()
 
 # dict data_receiving()
 # 센서로부터 data bit를 받아, 그것을 적절한 int값으로 변환합니다.
@@ -269,9 +270,11 @@ def data_receiving():
     rcv2 = spi.xfer2([0x40]*8) # follow up action
     time.sleep(ds)
     #print(rcv2)
-    #print(F"got {len(rcv2)}B {rcv2[0:20]}...")
     
     if rcv2[0] == 216 and rcv2[1] == 216:
+        global old
+        print(F"\n{datetime.now().strftime('%H:%M:%S')} +{(old-datetime.now()).total_seconds()}s got {len(rcv2)}B {rcv2}", end=' ')
+        old=datetime.now()
         isReady = True
         json_data = {}
         #print("data is ready")
@@ -299,13 +302,13 @@ def data_receiving():
     if isReady: #only send data if data is ready
         #print("s:"+ "0x26")        # request static
         rcv3 = spi.xfer2([0x26])
-        #print(rcv3)
+        print(rcv3, end=' ')
         #print("static sensor data signal")
         time.sleep(ds)
 
         #print("s:"+ "0x40")
         rcv4 = spi.xfer2([0x40]*16) # follow up action
-        #print(rcv4)
+        print(rcv4, end=' ')
         degreeX = deg_conversion(rcv4[0:2]) + Offset['TI'] 
         degreeY = deg_conversion(rcv4[2:4]) + Offset['TI'] 
         degreeZ = deg_conversion(rcv4[4:6]) + Offset['TI'] 
@@ -355,132 +358,8 @@ def data_receiving():
         for x in json_data['trigger']:
             if  json_data['trigger'][x]=='1': s1 += f' {x}:1'
         json_data["Status"]="Ok"
+        #print(json_data)
         return json_data
 
-def set_config_data(jdata):
-    print(f'CONFIG wrote to board')
-    for x in jdata: print(x, jdata[x])
-
-    global Offset
-    # set offset, already defauled to 0
-    '''
-    if '-AC_' in aename: Offset['ac'] = config['cmeasure']['offset']  
-    if '-DI_' in aename: Offset['di'] = config['cmeasure']['offset']  
-    if '-TI_' in aename: Offset['ti'] = config['cmeasure']['offset']  
-    if '-TP_' in aename: Offset['tp'] = config['cmeasure']['offset']  
-    '''
-
-    sel_sensor=0
-    for stype in jdata:
-        Offset[stype]=jdata[stype]['offset']
-        if jdata[stype]['use']=='Y': 
-            sel_sensor += jdata[stype]['select']
-        
-    
-    # making triger_seltect
-    '''
-    ttp = tdi = tti = tac = 0
-    tp1h = tp1l = di1h = di1l = ti1h = ti1l = ac1h = 0
-
-    if '-AC_' in aename and 'use' in config['ctrigger'] and config['ctrigger']['use'] in {'Y','y'}: 
-        tac = int(0x0100)
-        if 'st1high' in config['ctrigger'] and str(config['ctrigger']['st1high']).isnumeric(): ac1h = int(config['ctrigger']['st1high'])
-    if '-DI_' in aename and 'use' in config['ctrigger'] and config['ctrigger']['use'] in {'Y','y'}:
-        tdi = int(0x0800)
-        if 'st1high' in config['ctrigger'] and str(config['ctrigger']['st1high']).isnumeric(): di1h = int(config['ctrigger']['st1high'])
-        if 'st1low' in config['ctrigger'] and str(config['ctrigger']['st1high']).isnumeric(): di1l = int(config['ctrigger']['st1low'])
-        di1l = config['ctrigger']['st1low']
-    if '-TI_' in aename and 'use' in config['ctrigger'] and config['ctrigger']['use'] in {'Y','y'}:
-        tti = int(0x0200)
-        if 'st1high' in config['ctrigger'] and str(config['ctrigger']['st1high']).isnumeric(): ti1h = int(config['ctrigger']['st1high'])
-        if 'st1low' in config['ctrigger'] and str(config['ctrigger']['st1high']).isnumeric(): ti1l = int(config['ctrigger']['st1low'])
-    if '-TP_' in aename and 'use' in config['ctrigger'] and config['ctrigger']['use'] in {'Y','y'}:
-        ttp = int(0x1000)
-        if 'st1high' in config['ctrigger'] and str(config['ctrigger']['st1high']).isnumeric(): tp1h = int(config['ctrigger']['st1high'])
-        if 'st1low' in config['ctrigger'] and str(config['ctrigger']['st1high']).isnumeric(): tp1l = int(config['ctrigger']['st1low'])
-    '''
-
-    # formatting for GBC data structure and tranmisssion (two bytes) 
-    # Revise latter!!!
-    global board_setting
-    board_setting['samplingRate'] =   int(np.uint16(100))           # hw fix 5/9
-    board_setting['sensingDuration'] = int(np.uint16(12*60*60))     # hw fix 5/9
-    board_setting['measurePeriod'] =  int(np.uint16(1))             # SC support 5/9 
-    board_setting['uploadPeriod'] =   int(np.uint16(6))             # hSC support 5/9
-    #board_setting['sensorSelect'] =   int(np.uint16(ttp|tdi|tti|tac))
-    board_setting['sensorSelect'] =   int(np.uint16(sel_sensor))
-    board_setting['highTemp'] =       int(np.int16(jdata['TP']['st1high']*100))
-    board_setting['lowTemp'] =        int(np.int16(jdata['TP']['st1low']*100))
-    board_setting['highDisp'] =       int(np.uint16((jdata['DI']['st1high']*692.9678+16339000)/1024))
-    board_setting['lowDisp'] =        int(np.uint16((jdata['DI']['st1low']*692.9678+16339000)/1024))
-    board_setting['highStrain'] =     int(np.int16(0))
-    board_setting['lowStrain'] =      int(np.int16(0))
-    board_setting['highTilt'] =       int(np.int16(jdata['TI']['st1high']*100))
-    board_setting['lowTilt'] =        int(np.int16(jdata['TI']['st1low']*100))
-    board_setting['highAcc'] =        int(np.uint16(jdata['AC']['st1high']/0.0039/16))
-    board_setting['lowAcc'] =         int(np.int16(0))       # hw fix 5/9
-    # end of formatting 
-    return board_setting 
-
-
-def get_status_data():
-    global BaseTime
-    
-    spi.xfer2([0x27])
-    time.sleep(ds)
-    status_data_i_got = spi.xfer2([0x0]*14)
-
-    timestamp   = status_data_i_got[3]  << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0] - TimeCorrection
-    solar   = status_data_i_got[7]  << 8  | status_data_i_got[6]  
-    battery  = status_data_i_got[9]  << 8  | status_data_i_got[8]   
-    vdd     = status_data_i_got[11] << 8  | status_data_i_got[10]  
-
-    solar, battery, vdd = status_conversion(solar, battery, vdd)
-
-    status_data={}
-    status_data["Timestamp"] = time_conversion( timestamp ) # board uptime 
-    status_data["resetFlag"] = status_data_i_got[5]  << 8  | status_data_i_got[4]   
-    status_data["solar"]     = solar #
-    status_data["battery"]   = float(f'{battery:.1f}') #battery %
-    status_data["vdd"]       = vdd 
-    status_data["errcode"]   = status_data_i_got[13] << 8  | status_data_i_got[12]  
-    return(status_data)
-
-    
-@app.route('/sync')
-def sync():
-    Time_Stamp["TimeStamp"]==0
-    return {"Status":"Ok", "Origin":"sync"}
-
-@app.route('/capture')
-def capture():
-    data = data_receiving()
-    data['Origin']='capture'
-    return data
-
-@app.route('/status')
-def status():
-    data=get_status_data()
-    data["Status"]="Ok"
-    data["Origin"]='status'
-    return data
-
-@app.route('/config', methods=['GET', 'POST'])
-def config():
-    sending_config_data = [0x09]
-    Config_data = set_config_data(request.json)
-    print(Config_data, flush=True)
-
-    # assuming all values are two bytes
-    for tmp in Config_data.values():
-        # convert order to GBC parsing
-        #sending_config_data.append(tmp >> 8)
-        #sending_config_data.append(tmp & 0xFF)
-        sending_config_data.append(tmp & 0xff) 
-        sending_config_data.append(tmp >> 8)
-    rcv = spi.xfer2(sending_config_data)
-
-    return {"Status":"Ok", "Origin":"config"}
-
-if __name__ == '__main__':
-    app.run()
+while True:
+    j=data_receiving() 

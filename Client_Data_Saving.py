@@ -656,7 +656,7 @@ def do_capture():
     global dev_busy
     if j['Status'] == 'False':
         dev_busy +=1
-        if dev_busy > 1: print(f'device busy {dev_busy}')
+        if dev_busy > 1: print(f"rpiTime= {datetime.now().strftime('%H:%M:%S')} device-busy {dev_busy}")
         return 
 
     t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
@@ -886,8 +886,9 @@ def do_capture():
     if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
     if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
         m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
-        print(f'GOT 10s minutes')
+        print(f'GOT 10s minutes {m10[aename]}')
 
+        timesync=False
         for aename in ae:
             # skip if not measuring
             if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
@@ -896,15 +897,16 @@ def do_capture():
                 # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
                 if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
                     stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+                    do_timesync=True
                 else:
                     t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
                 schedule_measureperiod(aename)
             else:
-                print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min. clear 10 minute long data.")
-                memory[aename]['file']={}
+                print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min.")
+                savedData.remove_old_data(aename, boardTime)
 
-        # 매 데이타 처리후에 sync 실시
-        do_timesync()
+        # 매 데이타 처리후에만 sync 실시
+        if timesync: do_timesync()
 
     # 데이타 전송처리 끝
     t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
@@ -960,7 +962,7 @@ def do_capture():
 
     t1_msg += f' - doneSaving - {process_time()-t1_start:.1f}s' 
     if process_time()-t0_start>0.5:
-        print(f'TIME do_capture {t1_msg}')
+        print(f'TIME do_capture elapsed= {process_time()-t0_start:.1f}s {t1_msg}')
 
 
 def do_tick():
@@ -970,7 +972,7 @@ def do_tick():
 
     once=True
     for aename in schedule:
-        if schedule[aename]['state'] <= boardTime:
+        if 'state' in schedule[aename] and schedule[aename]['state'] <= boardTime:
             if once:
                 once=False
                 do_status()
