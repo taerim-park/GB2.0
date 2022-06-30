@@ -253,6 +253,7 @@ TimeCorrection = int(ds * 1000) # FIXME
 
 # AE별 global offset value, defaulted to 0
 Offset={'AC':0,'DI':0,'TI':0,'TP':0}
+old=datetime.now()
 
 # dict data_receiving()
 # 센서로부터 data bit를 받아, 그것을 적절한 int값으로 변환합니다.
@@ -269,9 +270,11 @@ def data_receiving():
     rcv2 = spi.xfer2([0x40]*8) # follow up action
     time.sleep(ds)
     #print(rcv2)
-    print(F"\n{datetime.now().strftime('%H:%M:%S')} got {len(rcv2)}B {rcv2}", end=' ')
     
     if rcv2[0] == 216 and rcv2[1] == 216:
+        global old
+        print(F"\n{datetime.now().strftime('%H:%M:%S')} +{(old-datetime.now()).total_seconds()}s got {len(rcv2)}B {rcv2}", end=' ')
+        old=datetime.now()
         isReady = True
         json_data = {}
         #print("data is ready")
