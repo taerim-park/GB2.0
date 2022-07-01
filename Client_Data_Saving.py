@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220621_V1.27'
+VERSION='20220701_V1.31'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -404,8 +404,8 @@ def do_user_command(aename, jcmd):
         print(f'set {aename}/connect= {jcmd}')
         isTypeWrong = False
         TypeWrongMessage = "type error : "
-        for k in jcmd['connect']: # keyword를 적용하기 전에 type이 옳은지 검사한다
-            if not type_check(jcmd['connect'][k], type_dict[k]): 
+        for k in jcmd: # keyword를 적용하기 전에 type이 옳은지 검사한다
+            if not type_check(jcmd[k], type_dict[k]): 
                 isTypeWrong = True
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
@@ -728,7 +728,7 @@ def do_capture():
             continue
 
         # 새로운 trigger 처리
-        if sensor_type(aename) == "AC" or sensor_type(aename) == "DS": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
+        if sensor_type(aename) == "AC": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
             trigger_list = j["AC"]
             trigger_data = "unknown"
             for ac in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
@@ -758,6 +758,40 @@ def do_capture():
                 trigger_activated[aename]=ctrigger['afsec']
             else: 
                 trigger_activated[aename]=60  # value error, 60 instead
+
+        
+        elif sensor_type(aename) == "DS": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
+            trigger_list = j["DS"]
+            trigger_data = "unknown"
+            for st in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
+                if ctrigger['mode'] == 1 and st[str_axis] > ctrigger['st1high']:
+                    trigger_data = st[str_axis]
+                    break
+                elif ctrigger['mode'] == 2 and st[str_axis] < ctrigger['st1low']:
+                    trigger_data = st[str_axis]
+                    break
+                elif ctrigger['mode'] == 3:
+                    if st[str_axis] > ctrigger['st1high'] and st[str_axis]< ctrigger['st1low']:
+                        trigger_data = st[str_axis]
+                        break
+                elif ctrigger['mode'] == 4:
+                    if st[str_axis] < ctrigger['st1high'] and st[str_axis] > ctrigger['st1low']:
+                        trigger_data = st[str_axis]
+                        break
+
+            
+            if trigger_data == "unknown":
+                print(f" not-for-me-trig-condition-skip")
+                continue
+                
+            dtrigger['val'] = trigger_data
+
+            print(f" got-trigger-new-{aename}-bfsec={ctrigger['bfsec']}-afsec={ctrigger['afsec']}")
+            if isinstance(ctrigger['afsec'],int) and ctrigger['afsec']>0: 
+                trigger_activated[aename]=ctrigger['afsec']
+            else: 
+                trigger_activated[aename]=60  # value error, 60 instead
+
         else:
             # 정적 데이터의 경우, 트리거 발생 당시의 데이터를 전송한다
             print(f"got non-AC trigger {aename}  bfsec= {ctrigger['bfsec']}  afsec= {ctrigger['afsec']}")
@@ -790,7 +824,7 @@ def do_capture():
         dtrigger['samplerate']=cmeasure['samplerate']
 
         # AC need afsec
-        if sensor_type(aename) == "AC":
+        if sensor_type(aename) == "AC" or sensor_type(aename) == "DS":
             #print("will process after afsec sec")
             pass
         else:
@@ -807,7 +841,8 @@ def do_capture():
         "AC":0,
         "DI":0,
         "TP":0,
-        "TI":0
+        "TI":0,
+        "DS":0
     }
 
     '''
@@ -838,14 +873,14 @@ def do_capture():
     for i in range(len(j["AC"])):
         acc_list.append(j["AC"][i][acc_axis] + offset_dict["AC"])
     for i in range(len(j["DS"])):
-        str_list.append(j["DS"][i][str_axis]) #offset 기능 구현되어있지 않음
+        str_list.append(j["DS"][i][str_axis] + offset_dict["DS"]) #offset 기능 구현되어있지 않음
         
     #print(F"acc : {acc_list}")
     #samplerate에 따라 파일에 저장되는 data 조정
     #현재 가속도 센서와 변형률 센서에 적용중
     for aename in ae:
         # 동적 데이터의 경우, samplerate가 100이 아닌 경우에 대처한다
-        if sensor_type(aename)=="AC" or sensor_type(aename)=="DS" or sensor_type(aename)=="SS":
+        if sensor_type(aename)=="AC" or sensor_type(aename)=="DS":
             ae_samplerate = float(ae[aename]["config"]["cmeasure"]["samplerate"])
             if ae_samplerate != 100:
                 if 100%ae_samplerate != 0:
@@ -853,18 +888,29 @@ def do_capture():
                     print("wrong samplerate config")
                     print("apply standard samplerate = 100")
                     ae_samplerate = 100
-                new_acc_list = list()
                 merged_value = 0
                 merge_count = 0
                 sample_number = 100//ae_samplerate
-                for i in range(len(acc_list)):
-                    merged_value += acc_list[i]
-                    merge_count += 1
-                    if merge_count == sample_number:
-                        new_acc_list.append(round(merged_value/sample_number, 2))
-                        merge_count = 0
-                        merged_value = 0
-                acc_list = new_acc_list
+                if sensor_type(aename)=="AC":
+                    new_acc_list = list()
+                    for i in range(len(acc_list)):
+                        merged_value += acc_list[i]
+                        merge_count += 1
+                        if merge_count == sample_number:
+                            new_acc_list.append(round(merged_value/sample_number, 2))
+                            merge_count = 0
+                            merged_value = 0
+                    acc_list = new_acc_list
+                else:
+                    new_str_list = list()
+                    for i in range(len(str_list)):
+                        merged_value += str_list[i]
+                        merge_count += 1
+                        if merge_count == sample_number:
+                            new_str_list.append(round(merged_value/sample_number, 2))
+                            merge_count = 0
+                            merged_value = 0
+                    str_list = new_str_list
             #print("samplerate calculation end")
             #print(acc_list)
     Acceleration_data = acc_list
@@ -951,7 +997,7 @@ def do_capture():
             dmeasure = {}
             dmeasure['val'] = raw_json[stype]["data"]
             dmeasure['time'] = raw_json[stype]["time"]
-            if stype == "AC" or stype == "DS" or stype == "SS":
+            if stype == "AC" or stype == "DS":
                 dmeasure['type'] = "D"
             else:
                 dmeasure['type'] = "S"
@@ -990,7 +1036,9 @@ def startup():
     print('create ci at boot')
     for aename in ae:
         ae[aename]['info']['manufacture']['fwver']=VERSION
-        create.allci(aename, {'config','info'})
+        create.allci(aename, {'config','info'}) 
+        ae[aename]['state']["abflag"]="N"
+        state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
     do_timesync()
 
 
