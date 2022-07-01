@@ -72,7 +72,7 @@ def time_conversion(stamp):
         x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
-        Time_Stamp["OldTimeStamp"]=stamp-1000
+        print(f"BaseTime= {x} TimeStamp= {stamp}")
 
     c_delta = stamp - Time_Stamp["TimeStamp"]
     return (Time_Stamp["BaseTime"] + timedelta(milliseconds = c_delta)).strftime("%Y-%m-%d %H:%M:%S")
@@ -464,7 +464,7 @@ def get_status_data():
     
 @app.route('/sync')
 def sync():
-    Time_Stamp["TimeStamp"]==0
+    Time_Stamp["TimeStamp"]=0
     return {"Status":"Ok", "Origin":"sync"}
 
 @app.route('/capture')

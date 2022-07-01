@@ -273,12 +273,14 @@ def data_receiving():
     
     if rcv2[0] == 216 and rcv2[1] == 216:
         global old
-        print(F"\n{datetime.now().strftime('%H:%M:%S')} +{(old-datetime.now()).total_seconds()}s got {len(rcv2)}B {rcv2}", end=' ')
+        print(F"\n{datetime.now().strftime('%H:%M:%S')} +{(datetime.now()-old).total_seconds()}s got {len(rcv2)}B {rcv2[0:2]}", end=' ')
         old=datetime.now()
         isReady = True
         json_data = {}
         #print("data is ready")
+        print(f"status= {rcv2[2:4]}", end=' ')
         status = basic_conversion(rcv2[2:4]) #status info save
+        print(f"counter= {rcv2[4:8]}", end=' ')
         time_counter = int(basic_conversion(rcv2[4:8]),16)
         if Time_Stamp["OldTimeStamp"]>time_counter:
             print(f"resync timer-counter for recovering timer-reset ")
@@ -308,7 +310,7 @@ def data_receiving():
 
         #print("s:"+ "0x40")
         rcv4 = spi.xfer2([0x40]*16) # follow up action
-        print(rcv4, end=' ')
+        print(f"XYZ= {rcv4[0:6]} Temp= {rcv4[6:8]} Di4_5= {rcv4[8:]}", end=' ')
         degreeX = deg_conversion(rcv4[0:2]) + Offset['TI'] 
         degreeY = deg_conversion(rcv4[2:4]) + Offset['TI'] 
         degreeZ = deg_conversion(rcv4[4:6]) + Offset['TI'] 
