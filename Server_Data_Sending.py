@@ -226,6 +226,17 @@ def tem_conversion(number_list):
     result /= 100
     return result
 
+def strain_conversion(number_list):
+    result_str = ''
+    for i in reversed(range(len(number_list))):
+        result_hex = hex(number_list[i])[2:]
+        if len(result_hex)<2:
+            result_hex = '0'+result_hex
+        result_str += result_hex
+    result = Twos_Complement(result_str, 4)
+    result = result*0.00690750 # 단위는 microstrain
+    return result
+
 # 220506 갱신 : 변위 변환 수식 수정 완료
 
 
@@ -341,9 +352,9 @@ def data_receiving():
             ay = acc_conversion(rcv6[4+cycle:8+cycle])
             az = acc_conversion(rcv6[8+cycle:12+cycle])
             """
-            sx = basic_conversion(rcv6[12+cycle:16+cycle])
-            sy = basic_conversion(rcv6[16+cycle:20+cycle])
-            sz = basic_conversion(rcv6[20+cycle:24+cycle])
+            sx = strain_conversion(rcv6[12+cycle:16+cycle])
+            sy = strain_conversion(rcv6[16+cycle:20+cycle])
+            sz = strain_conversion(rcv6[20+cycle:24+cycle])
             strain_list.append({"x":sx, "y":sy, "z":sz})
             #strain_list.append([sx, sy, sz])           
 
@@ -413,8 +424,12 @@ def set_config_data(jdata):
     board_setting['lowTemp'] =        int(np.int16(jdata['TP']['st1low']*100))
     board_setting['highDisp'] =       int(np.uint16((jdata['DI']['st1high']*692.9678+16339000)/1024))
     board_setting['lowDisp'] =        int(np.uint16((jdata['DI']['st1low']*692.9678+16339000)/1024))
-    board_setting['highStrain'] =     int(np.int16(0))
+
+    ###############
+    board_setting['highStrain'] =     int(np.int16(0)) # strain의 보드 설정을 위한 코드 수정 필요
     board_setting['lowStrain'] =      int(np.int16(0))
+    ###############
+
     board_setting['highTilt'] =       int(np.int16(jdata['TI']['st1high']*100))
     board_setting['lowTilt'] =        int(np.int16(jdata['TI']['st1low']*100))
     board_setting['highAcc'] =        int(np.uint16(jdata['AC']['st1high']/0.0039/16))

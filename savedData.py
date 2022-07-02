@@ -210,8 +210,9 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         try:
             r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")})
             print(f'TIMER: {aename} result= {r.text}')
-        except:
+        except Exception as e:
             print(f'TIMER: fail-to-upload {aename} file={zip_file_name}')
+            print(f'error:  {e}')
     
     #upload(aename, f'{save_path}/{file_name}.bin')
     print(f'TIMER: upload +3s')
