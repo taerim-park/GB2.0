@@ -205,15 +205,19 @@ def do_user_command(aename, jcmd):
         ### time 끝 ###
     }
 
+    def warn_state(msg):
+        global ae
+        ae[aename]['state']["abflag"]="Y"
+        ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+        ae[aename]['state']["abdesc"]=msg
+        print(msg)
+        state.report(aename)
     
     print(f'got command= {jcmd}')
     if "cmd" not in jcmd: # 명령어에 키워드 "cmd"가 없는 경우, 오류 report
-        ae[aename]['state']["abflag"]="Y"
-        ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-        ae[aename]['state']["abdesc"]=F"there is no keyword: cmd"
-        print(F"there is no keyword: cmd")
-        state.report(aename)
+        warn_state(F"there is no keyword: {cmd}")
         return
+
     cmd=jcmd['cmd']
     if 'reset' in cmd:
         file=f"{root}/{aename}.conf"
@@ -223,62 +227,65 @@ def do_user_command(aename, jcmd):
         else:
             print(f'no {aename}.conf to delete')
         os.system("sudo reboot")
-    elif 'reboot' in cmd:
+        return
+
+    if 'reboot' in cmd:
         os.system("sudo reboot")
-    elif cmd in {'synctime'}:
+
+    if cmd in {'synctime'}:
         do_timesync()
-    elif cmd in {'fwupdate'}:
+        return 
+
+    if cmd in {'fwupdate'}:
         url= f'{jcmd["protocol"]}://{jcmd["ip"]}:{jcmd["port"]}{jcmd["path"]}'
         versionup.versionup(aename, url)
-    elif cmd in {'realstart'}:
+        #will restart too
+        return
+
+    if cmd in {'realstart'}:
         if sensor_type(aename) == "CM":
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]=F"type CM does not support such command : realstart"
-            print(F"type CM does not support such command : realstart")
-            state.report(aename)
-            return
+            warn_state(F"type CM does not support command : {cmd}")
         else:
             print('start mqtt real tx')
             ae[aename]['local']['realstart']='Y'
-    elif cmd in {'realstop'}:
+        return
+
+    if cmd in {'realstop'}:
         if sensor_type(aename) == "CM":
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]=F"type CM does not support such command : realstop"
-            print(F"type CM does not support such command : realstop")
-            state.report(aename)
-            return
+            warn_state(F"type CM does not support command : {cmd}")
         else:
             print('stop mqtt real tx')
             ae[aename]['local']['realstart']='N'
-    elif cmd in {'reqstate'}:
+        return
+
+    if cmd in {'reqstate'}:
         # 얘는 board에서 읽어오는 부분이있다. 
         do_status()
         ae[aename]['state']["abflag"]="N"
         state.report(aename)
-    elif cmd in {'measurestart'}:
+        return
+
+    if cmd in {'measurestart'}:
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
         create.ci(aename, 'config', 'cmeasure')
         save_conf(aename)
-    elif cmd in {'measurestop'}:
+        return
+
+    if cmd in {'measurestop'}:
         ae[aename]['config']['cmeasure']['measurestate']='stopped'
         create.ci(aename, 'config', 'cmeasure')
         save_conf(aename)
+        return
 
         ### 여기까지가 type check 필요없는 명령어들 ###
 
-    elif cmd in {'settrigger', 'setmeasure'}: # 220620갱신 : 본문에 바로 명령어가 작성된다는 점에 주의
+    if cmd in {'settrigger', 'setmeasure'}: # 220620갱신 : 본문에 바로 명령어가 작성된다는 점에 주의
         if 'settrigger' in cmd:
             if sensor_type(aename) == "CM": # 카메라는 trigger 설정을 지원하지 않음
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]=F"type CM does not support such command : settrigger"
-                print(F"type CM does not support such command : settrigger")
-                state.report(aename)
+                warn_state(F"type CM does not support command : {cmd}")
                 return
-            else:
-                command_key = 'settrigger'
+            
+            command_key = 'settrigger'
         elif 'setmeasure' in cmd:
             command_key = 'setmeasure'
 
@@ -287,44 +294,27 @@ def do_user_command(aename, jcmd):
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
         k1=set(jcmd) - {'use','mode','st1high','st1low','bfsec','afsec'} #ctrigger 명령어의 키워드 유효성 검사
         if command_key == 'settrigger' and len(k1)>0:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="Invalid key in ctrigger command: "
             for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            print(f"Invalid ctrigger command: {k1}")
-            state.report(aename)
+            warn_state(f"Invalid {command_key} param {k1}")
             return
 
         #cmeasure 명령어의 키워드 유효성 검사
         k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'st2max', 'st2min', 'st3max', 'st3min', 'st4max', 'st4min', 'st5max', 'st5min', 'st6max', 'st6min', 'st7max', 'st7min', 'st8max', 'st8min', 'st9max', 'st9min', 'st10max', 'st10min','formula', 'samplerate'}
         if command_key == 'setmeasure' and len(k1)>0:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="Invalid key in cmeasure command: "
             for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            print(f"Invalid ctrigger command: {k1}")
-            state.report(aename)
+            warn_state(f"Invalid {command_key} param {k1}")
             return
 
         if 'measureperiod' in jcmd: 
             if not isinstance(jcmd["measureperiod"],int):
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]="measureperiod must be integer. defaulted to 600"
-                state.report(aename)
+                warn_state("measureperiod must be integer. defaulted to 600")
                 jcmd['measureperiod']=600
             elif jcmd["measureperiod"] < 600:
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]="measureperiod must be bigger than 600. defaulted to 600"
-                state.report(aename)
+                warn_state("measureperiod must be bigger than 600. defaulted to 600")
                 jcmd['measureperiod']=600
                 return
             elif jcmd["measureperiod"]%600 != 0:
-                ae[aename]['state']["abflag"]="Y"
-                ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-                ae[aename]['state']["abdesc"]=f"measureperiod must be multiples of 600. modified to {int(jcmd[x]/600)*600} and accepted"
-                state.report(aename)
+                warn_state(f"measureperiod must be multiples of 600. modified to {int(jcmd[x]/600)*600} and accepted")
                 jcmd['measureperiod']= int(jcmd[x]/600)*600
         
         isTypeWrong = False
@@ -335,11 +325,7 @@ def do_user_command(aename, jcmd):
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
         if isTypeWrong:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]=TypeWrongMessage
-            state.report(aename)
-            print(TypeWrongMessage)
+            warn_state(TypeWrongMessage)
             return
 
         for k in jcmd:
@@ -359,18 +345,17 @@ def do_user_command(aename, jcmd):
         if 'stateperiod' in jcmd:
             ae[aename]['state']["abflag"]="N"
             state.report(aename)
+        return
 
-    elif cmd in {'settime'}:
+    if cmd in {'settime'}:
         del jcmd["cmd"]
         k1=set(jcmd) - {'ip', 'mode', 'period', 'port', 'zone'} #time 명령어의 키워드 유효성 검사
         if len(k1)>0:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="Invalid key in time command: "
-            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            print(f"Invalid time command: time {k1}")
-            state.report(aename)
+            m=f"Invalid key in time command: {k1}"
+            for x in k1: m += f" {x}"
+            warn_state(m)
             return
+
         print(f'set time= {jcmd}')
         isTypeWrong = False
         TypeWrongMessage = "type error : "
@@ -380,27 +365,23 @@ def do_user_command(aename, jcmd):
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
         if isTypeWrong:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]=TypeWrongMessage
-            print(TypeWrongMessage)
-            state.report(aename)
+            warn_state(TypeWrongMessage)
             return
         for x in jcmd: # type 검사에 성공했다면 설정값 입력
              ae[aename]["config"]["time"][x]= jcmd[x]
         save_conf(aename)
         create.ci(aename, 'config', 'time')
-    elif cmd in {'setconnect'}:
+        return
+
+    if cmd in {'setconnect'}:
         del jcmd["cmd"]
         k1=set(jcmd) - {'cseid', 'cseip', 'csename', 'cseport', 'mqttip', 'mqttport', 'uploadip', 'uploadport'} #connect 명령어의 키워드 유효성 검사
         if len(k1)>0:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]="Invalid key in connect command: "
-            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            print(f"Invalid connect command: connect {k1}")
-            state.report(aename)
+            m="Invalid key in connect command: "
+            for x in k1: m += f" {x}"
+            warn_state(m)
             return
+
         print(f'set {aename}/connect= {jcmd}')
         isTypeWrong = False
         TypeWrongMessage = "type error : "
@@ -410,27 +391,22 @@ def do_user_command(aename, jcmd):
                 TypeWrongMessage += F"\n {k} must be {type_dict[k]}"
         # 하나라도 False가 나오면, 검사는 실패로 돌아가며 state에 error report를 시행
         if isTypeWrong:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]=TypeWrongMessage
-            print(TypeWrongMessage)
-            state.report(aename)
+            warn_state(TypeWrongMessage)
             return
         for x in jcmd: # type 검사에 성공했다면 설정값 입력
             ae[aename]['config']["connect"][x]=jcmd[x]
         create.ci(aename, 'config', 'connect')
         save_conf(aename)
-    elif cmd == 'takepicture':
+        return
+
+    if cmd == 'takepicture':
         if sensor_type(aename) == "CM":
             camera.take_picture_command(boardTime, aename) # 사진을 찍어 올린다
         else:
-            ae[aename]['state']["abflag"]="Y"
-            ae[aename]['state']["abtime"]=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            ae[aename]['state']["abdesc"]=F"type {sensor_type(aename)} does not support such command : takepicture"
-            print(F"type {sensor_type(aename)} does not support such command : takepicture")
-            state.report(aename)
-            return
-    elif cmd == 'inoon':
+            warn_state(F"type {sensor_type(aename)} does not support such command : takepicture")
+        return
+
+    if cmd == 'inoon':
         cmd2=jcmd['cmd2']
         if cmd2=="ae": 
             slack(aename, json.dumps(ae[aename], indent=4))
@@ -572,12 +548,16 @@ def do_config():
                 if 'st1low' in ctrigger: setting[sensor_type(aename)]['st1low']= ctrigger['st1low']
         #print(f"do_config board seting= {setting}")
 
-    r = requests.post('http://localhost:5000/config', json=setting)
-    if not r.status_code==200:
-        print(F"got do_config {r.status_code} skip")
+    try:
+        r = requests.post('http://localhost:5000/config', json=setting)
+        if not r.status_code==200:
+            print(F"got do_config {r.status_code} skip")
+            return
+        j= r.json()
+        print(f"got j={j}")
+    except requests.exceptions.RequestException as err:
+        print(f"error in requests {err}")
         return
-    j= r.json()
-    print(f"got j={j}")
 
 
 def do_trigger_followup(aename):
@@ -615,14 +595,24 @@ def do_trigger_followup(aename):
     print(f"comiled trigger data: {len(data)} bytes for bfsec+afsec= {ctrigger['bfsec']+ctrigger['afsec']}")
 
 def do_timesync():
-    r = requests.get('http://localhost:5000/sync')
-    print(F"do_timesync {r.json()}")
+    try:
+        r = requests.get('http://localhost:5000/sync')
+        print(F"do_timesync {r.json()}")
+    except requests.exceptions.RequestException as err:
+        print(f"error in requests {err}")
+        return
+
 
 def do_status():
-    r = requests.get('http://localhost:5000/status')
-    if not r.status_code==200:
-        print("got do_status {r.statue_code} skip")
+    try:
+        r = requests.get('http://localhost:5000/status')
+        if not r.status_code==200:
+            print("got do_status {r.statue_code} skip")
+            return
+    except requests.exceptions.RequestException as err:
+        print(f"error in requests {err}")
         return
+
     j= r.json()
     print(f"got j={j}")
     if not j['Status']=='Ok':
@@ -644,9 +634,13 @@ def do_capture():
     t1_msg="0s"
     #print('do capture')
 
-    r = requests.get('http://localhost:5000/capture')
-    if not r.status_code==200:
-        print("got do_capture {r.statue_code} skip")
+    try:
+        r = requests.get('http://localhost:5000/capture')
+        if not r.status_code==200:
+            print("got do_capture {r.statue_code} skip")
+            return
+    except requests.exceptions.RequestException as err:
+        print(f"error in requests {err}")
         return
 
     j= r.json()

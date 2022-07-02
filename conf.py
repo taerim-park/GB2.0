@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+from datetime import datetime
 
 # 아래 설정값은 최소 1회만 읽어가고 외부명령어로 값 설정이 있을 경우, 그 뒤부터는 'config.dat' 에 저장시켜두고 그것을 사용한다.
 # ctrl command 로 reset 을 실행하거나, config.dat 를 삭제하면 다시 아래값을 1회 읽어간다.
@@ -10,7 +11,7 @@ csename='cse-gnrb-mon'
 host="218.232.234.232"  #건교부 테스트 사이트
 port=1883
 
-uploadhost='m.damoa.io'
+uploadhost=host
 uploadport=2883
 from default import make_ae, ae, TOPIC_list, supported_sensors
 
@@ -44,10 +45,10 @@ for aename in ae:
                 print(e)
                 print(f'wrong {aename}.conf')
     else:
-        print(f'read {aename} from {aename}.conf')
+        print(f'read {aename} from conf.py')
 
 memory={}
-boardTime=""
+boardTime=datetime.now()
 upTime=""
 
 def slack(aename, msg):
