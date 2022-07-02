@@ -28,9 +28,13 @@ def ci(aename, cnt, subcnt):
     }
     if cnt in {'config','info','data'}:
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}/{cnt}/{subcnt}"
+        if len(ae[aename][cnt][subcnt]) == 0: # 내용물이 없다면 빈 cin을 생성하게 되므로, 함수를 더이상 실행하지 않도록 한다
+            return
         body["m2m:cin"]["con"] = ae[aename][cnt][subcnt]
     else:
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}/{cnt}"
+        if len(ae[aename][cnt]) == 0: # 내용물이 없다면 빈 cin을 생성하게 되므로, 함수를 더이상 실행하지 않도록 한다
+            return
         body["m2m:cin"]["con"] = ae[aename][cnt]
     #print(f'{url} {json.dumps(body)[:50]}...')
     #print(f'{url}')
