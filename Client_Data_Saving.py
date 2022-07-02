@@ -535,6 +535,7 @@ def do_config():
     setting={ 'AC':{'use':'N','st1high':0,'st1low':0, 'offset':0},
                 'DI':{'use':'N','st1high':0,'st1low':0, 'offset':0},
                 'TI':{'use':'N','st1high':0,'st1low':0, 'offset':0},
+                'DS':{'use':'N','st1high':0,'st1low':0, 'offset':0},
                 'TP':{'use':'N','st1high':0,'st1low':0, 'offset':0}}
     for aename in ae:
         if sensor_type(aename) != 'CM':
