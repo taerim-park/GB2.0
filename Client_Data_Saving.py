@@ -23,6 +23,13 @@ from paho.mqtt import client as mqtt
 from events import Events
 from RepeatedTimer import RepeatedTimer
 
+import logging
+from flask import Flask, request, json, make_response
+app= Flask(__name__)
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
+
 import create  #for Mobius resource
 import versionup
 import make_oneM2M_resource
@@ -1102,6 +1109,48 @@ for aename in ae:
     schedule[aename]={}
     ae[aename]['local']['upTime']=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+@app.route('/')
+def a_status():
+    r='<H3>AE 설정 확인</H3>'
+    for aename in ae:
+        r+= f"<li><a href=/ae?aename={aename}>{aename}</a>"
+    r+='<H3>최근데이타 확인</H3>'
+    for aename in ae:
+        r+= f"<li><a href=/data?aename={aename}>{aename}</a>"
+    return r
+
+
+@app.route('/ae')
+def a_ae():
+    aename = request.args.get('aename', '')
+    if aename=='':
+        return 'please add aename'
+    r= make_response(json.dumps(ae[aename], indent=4, ensure_ascii=False), 200)
+    r.mimetype='text/plain'
+    return r
+
+@app.route('/data')
+def a_data():
+    aename = request.args.get('aename', '')
+    if aename=='': 
+        return 'please add aename'
+
+    mymemory = memory[aename]
+    keys = sorted(mymemory['file'].keys())
+    data=[]
+    for k in keys:
+        #print(f"k= {k}")
+        #print(f"mymemory['file'][k]= {mymemory['file'][k]}")
+        d=mymemory['file'][k]
+        if isinstance(d['data'], list): data.extend(d["data"])
+        else: data.append(d["data"])
+
+    r= make_response(json.dumps(data, indent=4, ensure_ascii=False), 200)
+    r.mimetype='text/plain'
+    return r
+
 print('Ready')
 startup()
 RepeatedTimer(0.9, do_tick)
+
+app.run(host='0.0.0.0', port=8000)
