@@ -1149,6 +1149,14 @@ def a_data():
     r.mimetype='text/plain'
     return r
 
+@app.route('/rssi')
+def a_rssi():
+    return 'try to get max rssi'
+
+@app.route('/picture')
+def a_picture():
+    return 'try to get good picture'
+
 print('Ready')
 startup()
 RepeatedTimer(0.9, do_tick)
