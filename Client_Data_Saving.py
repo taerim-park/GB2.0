@@ -22,6 +22,7 @@ from time import process_time
 from paho.mqtt import client as mqtt
 from events import Events
 from RepeatedTimer import RepeatedTimer
+from graph import mygraph
 
 import logging
 from flask import Flask, request, json, make_response
@@ -1112,11 +1113,14 @@ for aename in ae:
 @app.route('/')
 def a_status():
     r='<H3>AE 설정 확인</H3>'
-    for aename in ae:
-        r+= f"<li><a href=/ae?aename={aename}>{aename}</a>"
-    r+='<H3>최근데이타 확인</H3>'
-    for aename in ae:
-        r+= f"<li><a href=/data?aename={aename}>{aename}</a>"
+    for aename in ae: r+= f"<li><a href=/ae?aename={aename}>{aename}</a>"
+    r+='<H3>최종 데이타 확인</H3>'
+    for aename in ae: r+= f"<li><a href=/data?aename={aename}>{aename}</a>"
+    r+='<H3>RSSI 확인</H3>'
+    r+= f"<li><a href=/rssi>rssi 확인</a>"
+    r+='<H3>카메라 영상  확인</H3>'
+    r+= f"<li><a href=/camera>Camera 확인</a>"
+
     return r
 
 
@@ -1137,24 +1141,33 @@ def a_data():
 
     mymemory = memory[aename]
     keys = sorted(mymemory['file'].keys())
-    data=[]
-    for k in keys:
+    X=[]
+    Y=[]
+
+    for k in keys[-3:]:
         #print(f"k= {k}")
         #print(f"mymemory['file'][k]= {mymemory['file'][k]}")
         d=mymemory['file'][k]
-        if isinstance(d['data'], list): data.extend(d["data"])
-        else: data.append(d["data"])
+        time=d["time"].split(' ')[1]
+        if isinstance(d['data'], list): 
+            X.extend([time]*len(d["data"]))
+            Y.extend(d["data"])
+        else: 
+            X.append(time)
+            Y.append(d["data"])
 
-    r= make_response(json.dumps(data, indent=4, ensure_ascii=False), 200)
-    r.mimetype='text/plain'
+    r2='최종 데이타 확인'
+    for aename in ae:
+        r2+= f"<li><a href=/data?aename={aename}>{aename} </a>"
+    r= make_response(mygraph(zip(X,Y))+r2, 200)
     return r
 
 @app.route('/rssi')
 def a_rssi():
     return 'try to get max rssi'
 
-@app.route('/picture')
-def a_picture():
+@app.route('/camers')
+def a_camers():
     return 'try to get good picture'
 
 print('Ready')
