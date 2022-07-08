@@ -1166,7 +1166,7 @@ def a_data():
 def a_rssi():
     return 'try to get max rssi'
 
-@app.route('/camers')
+@app.route('/camera')
 def a_camers():
     return 'try to get good picture'
 
