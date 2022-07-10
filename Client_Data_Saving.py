@@ -23,6 +23,7 @@ from paho.mqtt import client as mqtt
 from events import Events
 from RepeatedTimer import RepeatedTimer
 from graph import mygraph
+import myserial
 
 import logging
 from flask import Flask, request, json, make_response
@@ -1162,9 +1163,17 @@ def a_data():
     r= make_response(mygraph(zip(X,Y))+r2, 200)
     return r
 
+stat=[]
+
 @app.route('/rssi')
 def a_rssi():
-    return 'try to get max rssi'
+    stat.insert(0, F"{datetime.now().strftime('%H:%M:%S')} {myserial.read()}")
+    if len(stat)>10: del stat[10]
+    r=''
+    for i in range(len(stat)):
+        r+=f"<li>{stat[i]}"
+    r = f"<html><head><meta http-equiv=refresh content=1></head><body>{r}</body>"
+    return r
 
 @app.route('/camera')
 def a_camers():
