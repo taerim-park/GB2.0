@@ -31,7 +31,8 @@ def take_picture(_time, aename, t1_start, t1_msg):
     file_time = _time.strftime('%Y%m%d%H%M')
     file_path = F"{root}/image/{file_time}_{aename}"
     if not os.path.exists(F"{root}/image"): os.makedirs(F"{root}/image") # 저장 디렉토리가 없다면 생성
-    os.system(F"fswebcam -r 1920*1080 --no-banner --title {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {file_path}.jpg") # 사진촬영 명령
+    #os.system(F"fswebcam -r 1920*1080 --no-banner --title {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {file_path}.jpg") # 사진촬영 명령
+    os.system(F"fswebcam -r 1920*1080 --font luxisr:48 --timestamp '%Y-%m-%d %H:%M:%S' {file_path}.jpg") # 사진촬영 명령
     ae[aename]['local']['last_picture']=f"{file_path}.jpg"
 
     t1_msg += f' - doneTakePicture - {process_time()-t1_start:.1f}s'
@@ -60,7 +61,8 @@ def take_picture_command(_time, aename):
     file_time = _time.strftime('%Y%m%d%H%M')
     file_path = F"{root}/image/{file_time}_{aename}"
     if not os.path.exists(F"{root}/image"): os.makedirs(F"{root}/image") # 저장 디렉토리가 없다면 생성
-    os.system(F"fswebcam -r 1920*1080 --no-banner --title {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {file_path}.jpg") # 사진촬영 명령
+    #os.system(F"fswebcam -r 1920*1080 --no-banner --title {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {file_path}.jpg") # 사진촬영 명령
+    os.system(F"fswebcam -r 1920*1080 --font luxisr:48 --timestamp '%Y-%m-%d %H:%M:%S' {file_path}.jpg") # 사진촬영 명령
     ae[aename]['local']['last_picture']=f"{file_path}.jpg"
 
 

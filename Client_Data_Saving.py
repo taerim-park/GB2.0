@@ -1118,7 +1118,9 @@ def a_status():
     r='<H3>AE 설정 확인</H3>'
     for aename in ae: r+= f"<li><a href=/ae?aename={aename}>{aename}</a>"
     r+='<H3>최종 데이타 확인</H3>'
-    for aename in ae: r+= f"<li><a href=/data?aename={aename}>{aename}</a>"
+    for aename in ae: 
+        print(aename, sensor_type(aename))
+        if sensor_type(aename) != "CM": r+= f"<li><a href=/data?aename={aename}>{aename}</a>"
     r+='<H3>RSSI 확인</H3>'
     r+= f"<li><a href=/rssi>rssi 확인</a>"
     r+='<H3>카메라 영상  확인</H3>'
@@ -1160,8 +1162,9 @@ def a_data():
             Y.append(d["data"])
 
     r2='최종 데이타 확인'
-    for aename in ae:
-        r2+= f"<li><a href=/data?aename={aename}>{aename} </a>"
+    for aename in ae: 
+        print(aename, sensor_type(aename))
+        if sensor_type(aename) != "CM": r2+= f"<li><a href=/data?aename={aename}>{aename}</a>"
     r= make_response(mygraph(zip(X,Y))+r2, 200)
     return r
 
@@ -1178,7 +1181,7 @@ def a_rssi():
     return r
 
 @app.route('/camera')
-def a_camers():
+def a_camera():
     global ae
     for aename in ae:
         if sensor_type(aename) == "CM":

@@ -2,15 +2,20 @@ import json
 
 def mygraph(d):
     with open("graph.html") as f: format=f.read()
-    s=''
-    s2=''
+    label=''
+    data=''
+    raw=''
     k=0
     for x in d:
-        s+= f",['{x[0]}',{x[1]}]"
-        s2+=f" {x[1]}"
+        if label!="": label+=","
+        label+=f"'{x[0]}'"
+        if data!="": data+=","
+        data+=f"{x[1]}"
+        raw+=f" {x[1]}"
         k+=1
     #print(s)
-    s = format.replace('<%DATA%>', s)
-    s = s.replace('<%RAWDATA%>', s2)
+    s = format.replace('<%LABEL%>', label)
+    s = s.replace('<%DATA%>', data)
+    s = s.replace('<%RAWDATA%>', raw)
     s = s.replace('<%LENGTH%>', str(k))
     return s
