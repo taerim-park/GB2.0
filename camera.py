@@ -27,10 +27,12 @@ def sensor_type(aename):
 # take_picture(_time, aename, t1_start, t1_msg)
 # 즉시 사진을 촬영 후 저장, 이후 파일을 http raw file server로 전송합니다. 별도로 압축은 진행하지 않습니다.
 def take_picture(_time, aename, t1_start, t1_msg):
+    global ae
     file_time = _time.strftime('%Y%m%d%H%M')
     file_path = F"{root}/image/{file_time}_{aename}"
     if not os.path.exists(F"{root}/image"): os.makedirs(F"{root}/image") # 저장 디렉토리가 없다면 생성
-    os.system(F"fswebcam -r 1920*1080 --no-banner {file_path}.jpg") # 사진촬영 명령
+    os.system(F"fswebcam -r 1920*1080 --no-banner --title {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {file_path}.jpg") # 사진촬영 명령
+    ae[aename]['local']['last_picture']=f"{file_path}.jpg"
 
     t1_msg += f' - doneTakePicture - {process_time()-t1_start:.1f}s'
 
@@ -54,10 +56,12 @@ def take_picture(_time, aename, t1_start, t1_msg):
 # take_picture_command(_time, aename)
 # 즉시 사진을 촬영 후 저장, 이후 파일을 http raw file server로 전송합니다. take_picture과의 차이점은 인자로 t1_start, t1_msg를 받지 않는다는 점입니다.
 def take_picture_command(_time, aename):
+    global ae
     file_time = _time.strftime('%Y%m%d%H%M')
     file_path = F"{root}/image/{file_time}_{aename}"
     if not os.path.exists(F"{root}/image"): os.makedirs(F"{root}/image") # 저장 디렉토리가 없다면 생성
-    os.system(F"fswebcam -r 1920*1080 --no-banner {file_path}.jpg") # 사진촬영 명령
+    os.system(F"fswebcam -r 1920*1080 --no-banner --title {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {file_path}.jpg") # 사진촬영 명령
+    ae[aename]['local']['last_picture']=f"{file_path}.jpg"
 
 
     def upload():

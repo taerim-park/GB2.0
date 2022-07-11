@@ -26,7 +26,7 @@ from graph import mygraph
 import myserial
 
 import logging
-from flask import Flask, request, json, make_response
+from flask import Flask, request, json, make_response, send_file
 app= Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -1105,6 +1105,8 @@ def schedule_first():
         #slack(aename, json.dumps(ae[aename]))
         #print(ae[aename])
 
+        if sensor_type(aename) == "CM": camera.take_picture_command(boardTime, aename)
+
 for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}
     trigger_activated[aename]=-1
@@ -1177,7 +1179,15 @@ def a_rssi():
 
 @app.route('/camera')
 def a_camers():
-    return 'try to get good picture'
+    global ae
+    for aename in ae:
+        if sensor_type(aename) == "CM":
+            print(f" last_picture= {ae[aename]['local']['last_picture']}")
+            if ae[aename]['local']['last_picture'] == "":
+                return "no photo yet. wait for the first photo"
+            else:
+                return send_file(ae[aename]['local']['last_picture'], mimetype='image/jpg')
+    return "no camera device found"
 
 print('Ready')
 startup()
