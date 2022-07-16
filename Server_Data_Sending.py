@@ -24,6 +24,7 @@ from flask import Flask, request, json
 import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
 
 GPIO.setup(22, GPIO.OUT)   # 15, nRST
 GPIO.setup(5, GPIO.OUT)    # 29, self en
@@ -96,14 +97,14 @@ def time_conversion(stamp):
         # Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
-        print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp}")
+        print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp}")
         stamp_old = stamp - 1000;
 
     if stamp-stamp_old > 1900:
         # Oops, counter warps jumping to the future
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
-        print(f"time-sync by warping to the future: BaseTime= {x} TimeStamp= {stamp}")
+        print(f"time-sync by warping to the future: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp}")
 
     c_delta = stamp - Time_Stamp["TimeStamp"]
     stamp_old = stamp
