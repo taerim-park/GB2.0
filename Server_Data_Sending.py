@@ -18,6 +18,29 @@ import re
 import os
 import logging
 from flask import Flask, request, json
+
+# board LED, power setting
+
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
+
+GPIO.setup(22, GPIO.OUT)   # 15, nRST
+GPIO.setup(5, GPIO.OUT)    # 29, self en
+GPIO.setup(24, GPIO.OUT)    # 18, LED_G
+GPIO.setup(25, GPIO.OUT)    # 22, LED_R
+GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP) # 16, RPI_EN
+
+GPIO.output(22, True)
+GPIO.output(24, True)
+GPIO.output(25, True)
+GPIO.output(5,  False)
+'''
+def callback_i1(channel):
+    GPIO.output(5,  False)
+
+GPIO.add_event_detect(23, GPIO.FALLING, callback=callback_i1)
+'''
 app= Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -389,7 +412,7 @@ def set_config_data(jdata):
     if '-DI_' in aename: Offset['di'] = config['cmeasure']['offset']  
     if '-TI_' in aename: Offset['ti'] = config['cmeasure']['offset']  
     if '-TP_' in aename: Offset['tp'] = config['cmeasure']['offset']  
-    '''
+
 
     sel_sensor=0
     for stype in jdata:
@@ -399,7 +422,7 @@ def set_config_data(jdata):
         
     
     # making triger_seltect
-    '''
+
     ttp = tdi = tti = tac = 0
     tp1h = tp1l = di1h = di1l = ti1h = ti1l = ac1h = 0
 
@@ -429,7 +452,7 @@ def set_config_data(jdata):
     board_setting['measurePeriod'] =  int(np.uint16(1))             # SC support 5/9 
     board_setting['uploadPeriod'] =   int(np.uint16(6))             # hSC support 5/9
     #board_setting['sensorSelect'] =   int(np.uint16(ttp|tdi|tti|tac))
-    board_setting['sensorSelect'] =   int(np.uint16(sel_sensor))
+    board_setting['sensorSelect'] =   int(np.uint16(0x0100))
     board_setting['highTemp'] =       int(np.int16(jdata['TP']['st1high']*100))
     board_setting['lowTemp'] =        int(np.int16(jdata['TP']['st1low']*100))
     board_setting['highDisp'] =       int(np.uint16((jdata['DI']['st1high']*692.9678+16339000)/1024))

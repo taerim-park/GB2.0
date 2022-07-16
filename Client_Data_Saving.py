@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220701_V1.31'
+VERSION='20220713_V1.41'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -67,7 +67,7 @@ doneFirstShoot={}
 # 다중 데이터의 경우, 어떤 data를 저장할지 결정해야한다
 acc_axis = "x" # x, y, z중 택1
 deg_axis = "x" # x, y, z중 택1
-str_axis = "z" # x, y, z중 택1
+str_axis = "x" # x, y, z중 택1
 dis_channel = "ch4" # ch4, ch5중 택1
 
 def sigint_handler(signal, frame):
@@ -303,15 +303,17 @@ def do_user_command(aename, jcmd):
         ckey = cmd.replace('set','c')  # ctrigger, cmeasure
         k1=set(jcmd) - {'use','mode','st1high','st1low','bfsec','afsec'} #ctrigger 명령어의 키워드 유효성 검사
         if command_key == 'settrigger' and len(k1)>0:
-            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            warn_state(f"Invalid {command_key} param {k1}")
+            m="Invalid key in settrigger command: "
+            for x in k1: m += f" {x}"
+            warn_state(m)
             return
 
         #cmeasure 명령어의 키워드 유효성 검사
         k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'st2max', 'st2min', 'st3max', 'st3min', 'st4max', 'st4min', 'st5max', 'st5min', 'st6max', 'st6min', 'st7max', 'st7min', 'st8max', 'st8min', 'st9max', 'st9min', 'st10max', 'st10min','formula', 'samplerate'}
         if command_key == 'setmeasure' and len(k1)>0:
-            for x in k1: ae[aename]['state']["abdesc"] += f" {x}"
-            warn_state(f"Invalid {command_key} param {k1}")
+            m="Invalid key in setmeasure command: "
+            for x in k1: m += f" {x}"
+            warn_state(m)
             return
 
         if 'measureperiod' in jcmd: 
@@ -433,7 +435,7 @@ def do_user_command(aename, jcmd):
             for n in ae: msg+=f"{n} {ae[n]['config']['cmeasure']['measurestate']} {ae[n]['config']['cmeasure']['measureperiod']} {ae[n]['config']['cmeasure']['stateperiod']} {ae[n]['config']['ctrigger']['use']} {ae[n]['config']['ctrigger']['mode']} {ae[n]['config']['ctrigger']['bfsec']} {ae[n]['config']['ctrigger']['afsec']} {ae[n]['local']['realstart']}\n"
             slack(aename, msg)
     else:
-        print(f'invalid cmd {jcmd}')
+        warn_state(f'invalid cmd {jcmd}')
         
 
 def got_callback(topic, msg):
