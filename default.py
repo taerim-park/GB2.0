@@ -100,8 +100,22 @@ def make_ae(aename, csename, install, config_connect):
         ae[aename]['data']['dtrigger'].update(data_dtrigger)
         ae[aename]['data']['fft'].update(data_fft)
         ae[aename]['data']['dmeasure'].update(data_dmeasure)
-    ae[aename]['local']={'printtick':'N', 'realstart':'N', 'name':aename, 'upTime':""}
+    ae[aename]['local']={'printtick':'N', 'realstart':'N', 'name':aename, 'upTime':"", 'serial': getserial()}
     TOPIC_list[aename]=F'/{csename}/{aename}/realtime'
+
+def getserial():
+  # Extract serial from cpuinfo file
+  cpuserial = "0000000000000000"
+  try:
+    f = open('/proc/cpuinfo','r')
+    for line in f:
+      if line[0:6]=='Serial':
+        cpuserial = line[10:26]
+    f.close()
+  except:
+    cpuserial = "ERROR000000000"
+
+  return cpuserial
 
 ctrl={'cmd':''}
 # 'reset','reboot  synctime','fwupdate','realstart','realstop','reqstate','settrigger','settime','setmeasure','setconnect','measurestart','meaurestop'

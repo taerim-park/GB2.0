@@ -1040,6 +1040,7 @@ def startup():
     do_status()
     print('create ci at boot')
     for aename in ae:
+        print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'}) 
         ae[aename]['state']["abflag"]="N"
@@ -1194,7 +1195,7 @@ def a_camera():
                 return send_file(ae[aename]['local']['last_picture'], mimetype='image/jpg')
     return "no camera device found"
 
-print('Ready')
+print(f"===== Begin at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 startup()
 RepeatedTimer(0.9, do_tick)
 
