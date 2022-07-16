@@ -63,18 +63,27 @@ def send_data(cmd) :
     #print(f'RXD= {RXD}')
     return RXD
 
-
+stamp_old=0
 def time_conversion(stamp):
     global Time_Stamp
+    global stamp_old
 
+    x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if Time_Stamp["TimeStamp"]==0:
         # Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
-        x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
-        print(f"BaseTime= {x} TimeStamp= {stamp}")
+        print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp}")
+        stamp_old = stamp - 1000;
+
+    if stamp-stamp_old > 1900:
+        # Oops, counter warps jumping to the future
+        Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
+        Time_Stamp["TimeStamp"]=stamp
+        print(f"time-sync by warping to the future: BaseTime= {x} TimeStamp= {stamp}")
 
     c_delta = stamp - Time_Stamp["TimeStamp"]
+    stamp_old = stamp
     return (Time_Stamp["BaseTime"] + timedelta(milliseconds = c_delta)).strftime("%Y-%m-%d %H:%M:%S")
 
 def status_conversion(solar, battery, vdd):
@@ -288,6 +297,7 @@ def data_receiving():
         #print("data is ready")
         status = basic_conversion(rcv2[2:4]) #status info save
         time_counter = int(basic_conversion(rcv2[4:8]),16)
+        #print( Time_Stamp["OldTimeStamp"], time_counter)
         if Time_Stamp["OldTimeStamp"]>time_counter:
             print(f"resync timer-counter for recovering timer-reset ")
             Time_Stamp["TimeStamp"]=0

@@ -110,7 +110,7 @@ def jsonSave(aename, jsonFile):
 
     sec = int((now_time - mymemory["head"]).total_seconds())
     if sec>30:
-        print(f'sec too big {sec} limiting to 30')
+        print(f'sec too big {sec} limiting to 30 sensor_time= {now_time} head= {mymemory["head"]}')
         sec=10
     while sec>0:
         mymemory["head"] = mymemory["head"] + timedelta(seconds=1)
