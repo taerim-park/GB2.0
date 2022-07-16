@@ -1,3 +1,4 @@
+# run   sh -x compare.sh
 diff ../GB2.0/actuate.py actuate.py
 diff ../GB2.0/build_package.py build_package.py
 diff ../GB2.0/camera.py camera.py
