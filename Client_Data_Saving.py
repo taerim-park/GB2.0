@@ -954,11 +954,11 @@ def do_capture():
                 schedule_measureperiod(aename)
             else:
                 nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
-                print(f"no work now.  time to next measure= {nm}min.")
+                print(f"no work now.  time to next measure= {nm:.1f}min.")
                 if nm>59:
                     schedule_measureperiod(aename)
                     nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
-                    print(f"fixed wrong schedule time.  new time to next measure= {nm}min.")
+                    print(f"fixed wrong schedule time.  new time to next measure= {nm:.1f}min.")
                 savedData.remove_old_data(aename, boardTime)
 
         # 매 데이타 처리후에만 sync 실시
