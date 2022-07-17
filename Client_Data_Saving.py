@@ -938,7 +938,7 @@ def do_capture():
 	    if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
 	    if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
 	        m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
-	        print(f'GOT 10s minutes {m10[aename]}0')
+	        print(f'GOT 10s minutes board= {boardTime.strftime("%H:%M:%S")} rpi= {datetime.now().strftime("%H:%M:%S")} {m10[aename]}0')
 	
 	        timesync=False
 	        for aename in ae:

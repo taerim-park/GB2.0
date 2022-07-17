@@ -104,7 +104,7 @@ def time_conversion(stamp):
         # Oops, counter warps jumping to the future
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
-        print(f"time-sync by warping to the future: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp}")
+        print(f"time-sync by warping to the future: new BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp-stamp_old}")
 
     c_delta = stamp - Time_Stamp["TimeStamp"]
     stamp_old = stamp
