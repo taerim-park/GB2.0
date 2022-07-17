@@ -609,9 +609,9 @@ def do_trigger_followup(aename):
 def do_timesync():
     try:
         r = requests.get('http://localhost:5000/sync')
-        print(F"do_timesync {r.json()}")
+        print(F"do_timesync {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {r.json()}")
     except requests.exceptions.RequestException as err:
-        print(f"error in requests {err}")
+        print(f"do_timesync {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} error in requests {err}")
         return
 
 
