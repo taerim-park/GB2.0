@@ -118,7 +118,7 @@ def jsonSave(aename, jsonFile):
         if sec>1: print(f'{aename} json cover missing one by adding key={mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len={len(mymemory["file"])}')
         else: 
             rpitime = datetime.now()
-            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= {(rpitime - boardTime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%H:%M:%S")} state= {schedule[aename]["state"].strftime("%H:%M:%S")})')
+            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= {(rpitime - boardTime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%Y-%m-%d %H:%M:%S")} state= {schedule[aename]["state"].strftime("%Y-%m-%d %H:%M:%S")})')
         sec -= 1
     
     while len(mymemory["file"])>660:
@@ -953,7 +953,12 @@ def do_capture():
                     t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
                 schedule_measureperiod(aename)
             else:
-                print(f"no work now.  time to next measure= {(schedule[aename]['measure'] - boardTime).total_seconds()/60}min.")
+                nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
+                print(f"no work now.  time to next measure= {nm}min.")
+                if nm>59:
+                    schedule_measureperiod(aename)
+                    nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
+                    print(f"fixed wrong schedule time.  new time to next measure= {nm}min.")
                 savedData.remove_old_data(aename, boardTime)
 
         # 매 데이타 처리후에만 sync 실시
