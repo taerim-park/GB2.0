@@ -403,9 +403,6 @@ def data_receiving():
         return json_data
 
 def set_config_data(jdata):
-    print(f'CONFIG wrote to board')
-    for x in jdata: print(x, jdata[x])
-
     global Offset
     # set offset, already defauled to 0
     '''
@@ -518,7 +515,8 @@ def status():
 def config():
     sending_config_data = [0x09]
     Config_data = set_config_data(request.json)
-    print(Config_data, flush=True)
+    print(f'CONFIG wrote to board')
+    print(Config_data)
 
     # assuming all values are two bytes
     for tmp in Config_data.values():

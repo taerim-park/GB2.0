@@ -933,36 +933,39 @@ def do_capture():
 
 
     # boardTime이 정시가딘것이  확인되면 먼저 데이타 전송  처리작업을 한다.  10분의 기간이 10:00 ~ 19:99 이기때문
-    if aename not in m10: m10[aename]=""
-    if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
-    if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
-        m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
-        print(f'GOT 10s minutes {m10[aename]}')
-
-        timesync=False
-        for aename in ae:
-            # skip if not measuring
-            if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
-
-            if schedule[aename]['measure'] <= boardTime:
-                # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
-                if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
-                    stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
-                    timesync=True
-                else:
-                    t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
-                schedule_measureperiod(aename)
-            else:
-                nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
-                print(f"no work now.  time to next measure= {nm:.1f}min.")
-                if nm>59:
-                    schedule_measureperiod(aename)
-                    nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
-                    print(f"fixed wrong schedule time.  new time to next measure= {nm:.1f}min.")
-                savedData.remove_old_data(aename, boardTime)
-
-        # 매 데이타 처리후에만 sync 실시
-        if timesync: do_timesync()
+    if gotBoardTime:
+	    if aename not in m10: m10[aename]=""
+	    if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
+	    if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
+	        m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
+	        print(f'GOT 10s minutes {m10[aename]}0')
+	
+	        timesync=False
+	        for aename in ae:
+	            # skip if not measuring
+	            if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+	
+	            if schedule[aename]['measure'] <= boardTime:
+	                # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
+	                if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
+	                    stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+	                    timesync=True
+	                else:
+	                    t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
+	                schedule_measureperiod(aename)
+	            else:
+	                nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
+	                print(f"no work now.  time to next measure= {nm:.1f}min.")
+	                if nm>59:
+	                    schedule_measureperiod(aename)
+	                    nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
+	                    print(f"fixed wrong schedule time.  new time to next measure= {nm:.1f}min.")
+	                savedData.remove_old_data(aename, boardTime)
+	
+	        # 매 데이타 처리후에만 sync 실시
+	        if timesync: do_timesync()
+    else:
+        print(f"skip scheduling with boardTime not ready")
 
     # 데이타 전송처리 끝
     t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
@@ -1042,7 +1045,9 @@ def startup():
 
     #this need once for one board
     do_config()
+    time.sleep(0.1)
     do_status()
+    time.sleep(0.1)
     print('create ci at boot')
     for aename in ae:
         print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
@@ -1051,6 +1056,7 @@ def startup():
         ae[aename]['state']["abflag"]="N"
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
     do_timesync()
+    time.sleep(0.1)
 
 
 

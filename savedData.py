@@ -186,7 +186,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     # saved file의 이름은 끝나는 시간임 --> 시작시간으로 변경
     def savefile(merged_file):
         with open (file_name, "w") as f: json.dump(merged_file, f, indent=4)
-        print(f'TIMER: saved')
+        #print(f'TIMER: saved')
     #savefile(aename, boardTime, f'{save_path}/{file_name}.bin')
     print(f'TIMER: savefile +2s')
     Timer(2, savefile, [merged_file]).start()
@@ -205,7 +205,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         zip_file = zipfile.ZipFile(zip_file_name, "w")
         zip_file.write(file_name, basename(file_name), compress_type=zipfile.ZIP_DEFLATED)
         zip_file.close()
-        print(f"file compression has completed > {zip_file_name}")
+        #print(f"file compression has completed > {zip_file_name}")
 
         try:
             r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")})
@@ -215,7 +215,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
             print(f'error:  {e}')
     
     #upload(aename, f'{save_path}/{file_name}.bin')
-    print(f'TIMER: upload +3s')
+    #print(f'TIMER: upload +3s')
     Timer(3, upload).start()
     #print(f'{aename} uploaded a file elapsed= {process_time()-point1:.1f}s')
 
@@ -223,5 +223,5 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     t1_msg += f' - doneUploadFile - {process_time()-t1_start:.1f}s'
 
-    print("RETURN from savedJson()")
+    #print("RETURN from savedJson()")
     return 'ok', t1_start, t1_msg
