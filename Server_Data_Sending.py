@@ -97,14 +97,14 @@ def time_conversion(stamp):
         # Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
-        print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp}")
+        print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp_old}")
         stamp_old = stamp - 1000;
 
     if stamp-stamp_old > 1900:
         # Oops, counter warps jumping to the future
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
-        print(f"time-sync by warping to the future: new BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp-stamp_old}")
+        print(f"time-sync by warping to the future: new BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp_old}")
 
     c_delta = stamp - Time_Stamp["TimeStamp"]
     stamp_old = stamp

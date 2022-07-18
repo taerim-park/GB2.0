@@ -280,11 +280,8 @@ def data_receiving():
         #print("data is ready")
         print(f"status= {rcv2[2:4]}", end=' ')
         status = basic_conversion(rcv2[2:4]) #status info save
-        print(f"counter= {rcv2[4:8]}", end=' ')
         time_counter = int(basic_conversion(rcv2[4:8]),16)
-        if Time_Stamp["OldTimeStamp"]>time_counter:
-            print(f"resync timer-counter for recovering timer-reset ")
-            Time_Stamp["TimeStamp"]=0
+        print(f"counter= {rcv2[4:8]} {time_counter}", end=' ')
 
         # board not err 발생시 time_counter가 리셋되어 10이 온다.
         timestamp = time_conversion(time_counter) #timestamp info save.
@@ -363,5 +360,31 @@ def data_receiving():
         #print(json_data)
         return json_data
 
+def get_status_data():
+    global BaseTime
+
+    spi.xfer2([0x27])
+    time.sleep(ds)
+    status_data_i_got = spi.xfer2([0x0]*14)
+
+    timestamp   = status_data_i_got[3]  << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0] - TimeCorrection
+    solar   = status_data_i_got[7]  << 8  | status_data_i_got[6]
+    battery  = status_data_i_got[9]  << 8  | status_data_i_got[8]
+    vdd     = status_data_i_got[11] << 8  | status_data_i_got[10]
+
+    solar, battery, vdd = status_conversion(solar, battery, vdd)
+
+    status_data={}
+    status_data["Timestamp"] = time_conversion( timestamp ) # board uptime
+    status_data["resetFlag"] = status_data_i_got[5]  << 8  | status_data_i_got[4]
+    status_data["solar"]     = solar #
+    status_data["battery"]   = float(f'{battery:.1f}') #battery %
+    status_data["vdd"]       = vdd
+    status_data["errcode"]   = status_data_i_got[13] << 8  | status_data_i_got[12]
+    print(status_data)
+    return(status_data)
+
+
 while True:
+    j=get_status_data()
     j=data_receiving() 
