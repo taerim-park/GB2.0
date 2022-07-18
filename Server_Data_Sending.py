@@ -94,6 +94,11 @@ def time_conversion(stamp):
     global stamp_old
 
     x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if stamp < 0:
+        print(f"cover -time value {stamp} --> {stamp_old+1000}")
+        stamp = stamp_old+1000
+
     if Time_Stamp["TimeStamp"]==0:
         # Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
@@ -323,9 +328,6 @@ def data_receiving():
         status = basic_conversion(rcv2[2:4]) #status info save
         time_counter = int(basic_conversion(rcv2[4:8]),16)
         #print( Time_Stamp["OldTimeStamp"], time_counter)
-        if Time_Stamp["OldTimeStamp"]>time_counter:
-            print(f"resync timer-counter for recovering timer-reset ")
-            Time_Stamp["TimeStamp"]=0
 
         # board not err 발생시 time_counter가 리셋되어 10이 온다.
         timestamp = time_conversion(time_counter) #timestamp info save.
