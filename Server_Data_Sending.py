@@ -88,6 +88,7 @@ def send_data(cmd) :
     return RXD
 
 stamp_old=0
+#                  board timer counter
 def time_conversion(stamp):
     global Time_Stamp
     global stamp_old
@@ -100,7 +101,7 @@ def time_conversion(stamp):
         print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp_old}")
         stamp_old = stamp - 1000;
 
-    if stamp-stamp_old > 1900:
+    if stamp-stamp_old > 10000:
         # Oops, counter warps jumping to the future
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
