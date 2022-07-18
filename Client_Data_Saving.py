@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220713_V1.41'
+VERSION='20220718_V1.45'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -1054,7 +1054,7 @@ def startup():
 	time.sleep(0.1)
 	print('create ci at boot')
 	for aename in ae:
-		print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
+		#print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
 		ae[aename]['info']['manufacture']['fwver']=VERSION
 		create.allci(aename, {'config','info'}) 
 		ae[aename]['state']["abflag"]="N"
