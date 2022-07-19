@@ -674,7 +674,7 @@ def do_capture():
     # receive good data
     dev_busy=0
     boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S')
-    print(f"boardTime@capture= {boardTime.strftime('%H:%M:%S')} rpiTime= {datetime.now().strftime('%H:%M:%S')} counter={j['counter']} {(boardTime-datetime.now()).total_seconds():.1f}")
+    #print(f"boardTime@capture= {boardTime.strftime('%H:%M:%S')} rpiTime= {datetime.now().strftime('%H:%M:%S')} counter={j['counter']} {(boardTime-datetime.now()).total_seconds():.1f}")
     if not gotBoardTime:
         gotBoardTime = True
         schedule_first()
