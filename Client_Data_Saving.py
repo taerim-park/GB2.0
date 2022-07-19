@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220713_V1.41'
+VERSION='20220718_V1.45'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -379,7 +379,7 @@ def do_user_command(aename, jcmd):
             warn_state(TypeWrongMessage)
             return
         for x in jcmd: # type 검사에 성공했다면 설정값 입력
-             ae[aename]["config"]["time"][x]= jcmd[x]
+            ae[aename]["config"]["time"][x]= jcmd[x]
         save_conf(aename)
         create.ci(aename, 'config', 'time')
         return
@@ -415,6 +415,11 @@ def do_user_command(aename, jcmd):
             camera.take_picture_command(boardTime, aename) # 사진을 찍어 올린다
         else:
             warn_state(F"type {sensor_type(aename)} does not support such command : takepicture")
+        return
+
+    if cmd in 'autossh':
+        print("autossh ON")
+        os.system("sudo systemctl start autossh")
         return
 
     if cmd == 'inoon':
@@ -931,7 +936,6 @@ def do_capture():
     raw_json['DS'] = jsonCreate('DS', Time_data, Strain_data)
     
 
-
     # boardTime이 정시가딘것이  확인되면 먼저 데이타 전송  처리작업을 한다.  10분의 기간이 10:00 ~ 19:99 이기때문
     if gotBoardTime:
         if aename not in m10: m10[aename]=""
@@ -1049,11 +1053,12 @@ def startup():
     do_config()
     print('create ci at boot')
     for aename in ae:
-        print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
+        #print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'}) 
         ae[aename]['state']["abflag"]="N"
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
+    os.system("sudo systemctl start autossh")
 
 
 # schedule measureperiod

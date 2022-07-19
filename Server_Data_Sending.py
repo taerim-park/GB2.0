@@ -104,7 +104,7 @@ def time_conversion(stamp):
         Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
         Time_Stamp["TimeStamp"]=stamp
         print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp_old}")
-        stamp_old = stamp - 1000;
+        stamp_old = stamp - 1000
 
     if stamp-stamp_old > 10000:
         # Oops, counter warps jumping to the future
