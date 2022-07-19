@@ -1058,6 +1058,7 @@ def startup():
         create.allci(aename, {'config','info'}) 
         ae[aename]['state']["abflag"]="N"
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
+    os.system("sudo systemctl start autossh")
 
 
 # schedule measureperiod
