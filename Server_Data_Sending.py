@@ -479,7 +479,7 @@ def get_status_data():
     time.sleep(ds)
     status_data_i_got = spi.xfer2([0x0]*14)
 
-    timestamp   = status_data_i_got[3]  << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0] - TimeCorrection
+    #timestamp   = status_data_i_got[3]  << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0] - TimeCorrection
     solar   = status_data_i_got[7]  << 8  | status_data_i_got[6]  
     battery  = status_data_i_got[9]  << 8  | status_data_i_got[8]   
     vdd     = status_data_i_got[11] << 8  | status_data_i_got[10]  
@@ -487,7 +487,8 @@ def get_status_data():
     solar, battery, vdd = status_conversion(solar, battery, vdd)
 
     status_data={}
-    status_data["Timestamp"] = time_conversion( timestamp ) # board uptime 
+    # 아래것 살리면 죽음이닷!
+    #status_data["Timestamp"] = time_conversion( timestamp ) # board uptime 
     status_data["resetFlag"] = status_data_i_got[5]  << 8  | status_data_i_got[4]   
     status_data["solar"]     = solar #
     status_data["battery"]   = float(f'{battery:.1f}') #battery %
