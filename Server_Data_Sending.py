@@ -98,28 +98,19 @@ def status_conversion(solar, battery, vdd):
 
     return solar, battery, vdd
 
-stamp_old=0
-
 def sync_time():
-    global Time_Stamp, stamp_old
+    global Time_Stamp
     
     spi.xfer2([0x27])
     time.sleep(ds)  
     s = spi.xfer2([0x0]*14)
    
-    stamp = Time_Stamp["TimeOffset"] = (s[3] << 24 | s[2] << 16 | s[1] << 8 | s[0]) - TimeCorrection
+    timeoffset = Time_Stamp["TimeOffset"] = (s[3] << 24 | s[2] << 16 | s[1] << 8 | s[0]) - TimeCorrection
 
-    if stamp < 0:
-        print(f"sync_time: invalid stamp= {stamp} skip ")
+    if timeoffset < 0:
+        print(f"sync_time: invalid timeoffset= {timeoffset} skip ")
         return
 
-    if stamp_old==0: stamp_old=stamp-1000
-    if stamp-stamp_old > 1500:
-        print(f"time-sync by warping to the future: +{stamp-stamp_old}")
-    if stamp_old-stamp > 900:
-        print(f"time-sync going past: {stamp-stamp_old}")
-    stamp_old=stamp
-    
     Time_Stamp["BaseTime"]=datetime.now()
     print(f"sync_time BaseTime= {Time_Stamp['BaseTime'].strftime('%Y-%m-%d %H:%M:%S.%f')}  Time_Stamp['TimeOffset']= {Time_Stamp['TimeOffset']}")
     return Time_Stamp["BaseTime"]
