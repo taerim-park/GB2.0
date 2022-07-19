@@ -118,7 +118,7 @@ def jsonSave(aename, jsonFile):
         if sec>1: print(f'{aename} json cover missing one by adding key={mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len={len(mymemory["file"])}')
         else: 
             rpitime = datetime.now()
-            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= {(rpitime - boardTime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%Y-%m-%d %H:%M:%S")} state= {schedule[aename]["state"].strftime("%Y-%m-%d %H:%M:%S")})')
+            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= +{(boardTime-rpitime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%Y-%m-%d %H:%M:%S")} state= {schedule[aename]["state"].strftime("%Y-%m-%d %H:%M:%S")})')
         sec -= 1
     
     while len(mymemory["file"])>660:
@@ -674,7 +674,7 @@ def do_capture():
     # receive good data
     dev_busy=0
     boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S')
-    #print(f"boardTime@capture= {boardTime.strftime('%H:%M:%S')} rpiTime= {datetime.now().strftime('%H:%M:%S')} counter={j['counter']} {(datetime.now()-boardTime).total_seconds():.1f}")
+    print(f"boardTime@capture= {boardTime.strftime('%H:%M:%S')} rpiTime= {datetime.now().strftime('%H:%M:%S')} counter={j['counter']} {(boardTime-datetime.now()).total_seconds():.1f}")
     if not gotBoardTime:
         gotBoardTime = True
         schedule_first()
@@ -958,16 +958,18 @@ def do_capture():
                         t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
                     schedule_measureperiod(aename)
                 else:
-                    nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
-                    print(f"no work now.  time to next measure= {nm:.1f}min.")
-                    if nm>59:
+                    nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
+                    print(f"no work now.  time to next measure= {nsec/60:.1f}min.")
+                    if nsec>ae[aename]['config']['cmeasure']['measureperiod']:
                         schedule_measureperiod(aename)
-                        nm = (schedule[aename]['measure'] - boardTime).total_seconds()/60
-                        print(f"fixed wrong schedule time.  new time to next measure= {nm:.1f}min.")
+                        nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
+                        print(f"fixed wrong schedule time.  new time to next measure= {nsec/60:.1f}min.")
                     savedData.remove_old_data(aename, boardTime)
     
             # 매 데이타 처리후에만 sync 실시
-            if timesync: do_timesync()
+            if timesync:
+                print('At 10min time ', end='')
+                do_timesync()
     else:
         print(f"skip scheduling with boardTime not ready")
 
@@ -1049,9 +1051,6 @@ def startup():
 
     #this need once for one board
     do_config()
-    time.sleep(0.1)
-    do_status()
-    time.sleep(0.1)
     print('create ci at boot')
     for aename in ae:
         #print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
@@ -1059,11 +1058,6 @@ def startup():
         create.allci(aename, {'config','info'}) 
         ae[aename]['state']["abflag"]="N"
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
-    do_timesync()
-    time.sleep(0.1)
-    os.system("sudo systemctl start autossh")
-
-
 
 
 # schedule measureperiod
@@ -1119,8 +1113,8 @@ def schedule_first():
         sbtime = (boardTime+timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M:%S')
         sbtime1 = sbtime[:15]+'0:00'
         schedule[aename]['measure']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
-        schedule[aename]['state']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
-        print(f'{aename} set first schedule for measure, state at {boardTime} -> {schedule[aename]["state"]}')
+        schedule[aename]['state']= boardTime+timedelta(seconds=3)
+        print(f"{aename} set first schedule for measure at {schedule[aename]['measure']}  state at {schedule[aename]['state']}")
         #slack(aename, json.dumps(ae[aename]))
         #print(ae[aename])
 
