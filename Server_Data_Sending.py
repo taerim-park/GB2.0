@@ -118,6 +118,7 @@ def sync_time():
         print(f"time-sync by warping to the future: +{stamp-stamp_old}")
     if stamp_old-stamp > 900:
         print(f"time-sync going past: {stamp-stamp_old}")
+    stamp_old=stamp
     
     Time_Stamp["BaseTime"]=datetime.now()
     print(f"sync_time BaseTime= {Time_Stamp['BaseTime'].strftime('%Y-%m-%d %H:%M:%S.%f')}  Time_Stamp['TimeOffset']= {Time_Stamp['TimeOffset']}")
