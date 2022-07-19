@@ -46,8 +46,8 @@ app= Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-            #counter            #counter          #시간
-Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
+            #counter      #시간
+Time_Stamp={"TimeOffset":0,"BaseTime":datetime.now()}
 
 import signal
 def sigint_handler(signal, frame):
@@ -87,34 +87,9 @@ def send_data(cmd) :
     #print(f'RXD= {RXD}')
     return RXD
 
-stamp_old=0
-#                  board timer counter
 def time_conversion(stamp):
-    global Time_Stamp
-    global stamp_old
-
-    x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    if stamp < 0:
-        print(f"cover -time value {stamp} --> {stamp_old+1000}")
-        stamp = stamp_old+1000
-
-    if Time_Stamp["TimeStamp"]==0:
-        # Time_Stamp={"TimeStamp":0,"OldTimeStamp":0, "BaseTime":0}
-        Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
-        Time_Stamp["TimeStamp"]=stamp
-        print(f"time-sync by command: BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp_old}")
-        stamp_old = stamp - 1000
-
-    if stamp-stamp_old > 10000:
-        # Oops, counter warps jumping to the future
-        Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
-        Time_Stamp["TimeStamp"]=stamp
-        print(f"time-sync by warping to the future: new BaseTime= {x} TimeStamp= {stamp_old} --> {stamp} +{stamp-stamp_old}")
-
-    c_delta = stamp - Time_Stamp["TimeStamp"]
-    stamp_old = stamp
-    return (Time_Stamp["BaseTime"] + timedelta(milliseconds = c_delta)).strftime("%Y-%m-%d %H:%M:%S")
+    c_delta = stamp - Time_Stamp["TimeOffset"]
+    return Time_Stamp["BaseTime"] + timedelta(milliseconds = c_delta)
 
 def status_conversion(solar, battery, vdd):
     solar   = 0.003013 * solar + 1.2824
@@ -123,26 +98,30 @@ def status_conversion(solar, battery, vdd):
 
     return solar, battery, vdd
 
-def sync_time():
-    # DO NOTHING, time is broght from data packet
-    pass
+stamp_old=0
 
-    global Time_Stamp
+def sync_time():
+    global Time_Stamp, stamp_old
     
-    for i in range(5):
-        time.sleep(ds)  
-        spi.xfer2([0x27])
-        time.sleep(ds)  
-        status_data_i_got = spi.xfer2([0x0]*14)
+    spi.xfer2([0x27])
+    time.sleep(ds)  
+    s = spi.xfer2([0x0]*14)
    
-        Time_Stamp["TimeStamp"] = status_data_i_got[3] << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0]  - TimeCorrection
-        if Time_Stamp["TimeStamp"] > 0: break
-        print(f'INVALID Time_Stamp["TimeStamp"]= {Time_Stamp["TimeStamp"]}  try again')
+    stamp = Time_Stamp["TimeOffset"] = (s[3] << 24 | s[2] << 16 | s[1] << 8 | s[0]) - TimeCorrection
+
+    if stamp < 0:
+        print(f"sync_time: invalid stamp= {stamp} skip ")
+        return
+
+    if stamp_old==0: stamp_old=stamp-1000
+    if stamp-stamp_old > 1500:
+        print(f"time-sync by warping to the future: +{stamp-stamp_old}")
+    if stamp_old-stamp > 900:
+        print(f"time-sync going past: {stamp-stamp_old}")
     
-    x=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    Time_Stamp["BaseTime"]=datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
-    print(f"syc_time BaseTime= {Time_Stamp['BaseTime'].strftime('%H:%M:%S')}  Time_Stamp['TimeStamp']= {Time_Stamp['TimeStamp']}")
-    return Time_Stamp["BaseTime"].strftime("%Y-%m-%d %H:%M:%S")
+    Time_Stamp["BaseTime"]=datetime.now()
+    print(f"sync_time BaseTime= {Time_Stamp['BaseTime'].strftime('%Y-%m-%d %H:%M:%S.%f')}  Time_Stamp['TimeOffset']= {Time_Stamp['TimeOffset']}")
+    return Time_Stamp["BaseTime"]
 
 # int Twos_Complement(string data, int length)
 # bit data를 int data로 바꾸어줍니다.
@@ -327,16 +306,8 @@ def data_receiving():
         #print("data is ready")
         status = basic_conversion(rcv2[2:4]) #status info save
         time_counter = int(basic_conversion(rcv2[4:8]),16)
-        #print( Time_Stamp["OldTimeStamp"], time_counter)
+        json_data["sensorTime"] = time_conversion(time_counter).strftime('%Y-%m-%d %H:%M:%S.%f') #timestamp info save.
 
-        # board not err 발생시 time_counter가 리셋되어 10이 온다.
-        timestamp = time_conversion(time_counter) #timestamp info save.
-
-        json_data["Timestamp"] = timestamp
-        json_data["count"] = time_counter - Time_Stamp["OldTimeStamp"]
-        json_data["counter"] = time_counter
-
-        Time_Stamp["OldTimeStamp"] = time_counter
         #print("trigger status : ", status_trigger_return(status)) #trigger 작동여부 출력 테스트 코드
         json_data["trigger"] = status_trigger_return(status)
     else:
@@ -473,34 +444,31 @@ def set_config_data(jdata):
 
 
 def get_status_data():
-    global BaseTime
-    
     spi.xfer2([0x27])
     time.sleep(ds)
-    status_data_i_got = spi.xfer2([0x0]*14)
+    s = spi.xfer2([0x0]*14)
 
-    #timestamp   = status_data_i_got[3]  << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0] - TimeCorrection
-    solar   = status_data_i_got[7]  << 8  | status_data_i_got[6]  
-    battery  = status_data_i_got[9]  << 8  | status_data_i_got[8]   
-    vdd     = status_data_i_got[11] << 8  | status_data_i_got[10]  
+    timestamp   = (s[3]<<24 | s[2]<<16 | s[1]<<8 | s[0]) - TimeCorrection
+    battery  = s[9]<<8 | s[8]   
+    solar = s[7]<<8 | s[6]
+    vdd = s[11]<<8 | s[10]
 
     solar, battery, vdd = status_conversion(solar, battery, vdd)
 
     status_data={}
-    # 아래것 살리면 죽음이닷!
-    #status_data["Timestamp"] = time_conversion( timestamp ) # board uptime 
-    status_data["resetFlag"] = status_data_i_got[5]  << 8  | status_data_i_got[4]   
-    status_data["solar"]     = solar #
+    status_data["deviceTime"] = time_conversion( timestamp ) # board uptime 
     status_data["battery"]   = float(f'{battery:.1f}') #battery %
-    status_data["vdd"]       = vdd 
-    status_data["errcode"]   = status_data_i_got[13] << 8  | status_data_i_got[12]  
+    status_data["resetFlag"] = s[5]<<8 | s[4]   
+    status_data["solar"]     = solar
+    status_data["vdd"]       = vdd
+    status_data["errcode"]   = s[13]<<8 | s[12]  
     return(status_data)
 
     
 @app.route('/sync')
 def sync():
-    Time_Stamp["TimeStamp"]=0
-    return {"Status":"Ok", "Origin":"sync"}
+    sync_time()
+    return {"Status":"Ok", "Origin":"sync", "BaseTime": Time_Stamp["BaseTime"].strftime('%Y-%m-%d %H:%M:%S.%f'), "TimeOffset":Time_Stamp["TimeOffset"]}
 
 @app.route('/capture')
 def capture():
@@ -534,4 +502,5 @@ def config():
     return {"Status":"Ok", "Origin":"config"}
 
 if __name__ == '__main__':
+    sync()
     app.run()

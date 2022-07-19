@@ -99,6 +99,10 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     boardTime = datetime.strptime(j['time'],'%Y-%m-%d %H:%M:%S')
     if not os.path.exists(save_path): os.makedirs(save_path)
 
+    def elapsed(base):
+        return (datetime.now()-base).total_seconds()
+
+
     mymemory=memory[aename]
     point1 = process_time()
     print('measure time begin: 0')
@@ -139,7 +143,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     recent_data = json_data  # 마지막 데이타가 가장 최신
 
-    t1_msg += f' - doneCollectData - {process_time()-t1_start:.1f}s'
+    t1_msg += f' - doneCollectData - {elapsed(t1_start):.1f}s'
 
     print(f"{aename} len(data)= {len(data_list)} elapsed= {process_time()-point1:.1f}")
     
@@ -172,7 +176,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
             t0=Thread(target=create.ci, args=(aename, 'data', 'fft'))
             t0.start()
 
-    t1_msg += f' - doneSendCi - {process_time()-t1_start:.1f}s'
+    t1_msg += f' - doneSendCi - {elapsed(t1_start):.1f}s'
 
     merged_file = { # 최종적으로 rawperiod간의 데이터가 저장될 json의 dict
         "starttime":start_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -192,7 +196,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     Timer(2, savefile, [merged_file]).start()
 
 
-    t1_msg += f' - doneSaveFile - {process_time()-t1_start:.1f}s'
+    t1_msg += f' - doneSaveFile - {elapsed(t1_start):.1f}s'
 
     def upload():
         host = ae[aename]['config']['connect']['uploadip']
@@ -221,7 +225,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     remove_old_data(aename, boardTime)
 
-    t1_msg += f' - doneUploadFile - {process_time()-t1_start:.1f}s'
+    t1_msg += f' - doneUploadFile - {elapsed(t1_start):.1f}s'
 
     #print("RETURN from savedJson()")
     return 'ok', t1_start, t1_msg

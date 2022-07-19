@@ -30,7 +30,7 @@ from flask import Flask, request, json, make_response, send_file
 app= Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
-
+counter=1
 
 import create  #for Mobius resource
 import versionup
@@ -89,7 +89,7 @@ print('done any necessary Mobius resource creation')
 def jsonCreate(dataType, timeData, realData):
     data = {
         "type":dataType,
-        "time":timeData,
+        "time":timeData.strftime('%Y-%m-%d %H:%M:%S'),
         "data":realData
         }
     return data
@@ -103,7 +103,7 @@ def jsonSave(aename, jsonFile):
     global memory 
     mymemory = memory[aename]
     # remove microsec 2022-05-30 03:20:01.477113
-    now_time = datetime.strptime(jsonFile['time'].split('.')[0],'%Y-%m-%d %H:%M:%S')
+    now_time = datetime.strptime(jsonFile['time'], "%Y-%m-%d %H:%M:%S")
     if mymemory["head"] == "": 
         mymemory["head"] = now_time - timedelta(seconds=1)
         mymemory["tail"]= now_time
@@ -646,10 +646,13 @@ def do_capture():
     global ae
     global boardTime, gotBoardTime, schedule
 
-    t0_start=process_time()
-    t1_start=process_time()
+    t0_start=datetime.now()
+    t1_start=datetime.now()
     t1_msg="0s"
     #print('do capture')
+
+    def elapsed(base):
+        return (datetime.now()-base).total_seconds()
 
     try:
         r = requests.get('http://localhost:5000/capture')
@@ -667,14 +670,20 @@ def do_capture():
     if j['Status'] == 'False':
         dev_busy +=1
         if dev_busy > 1: print(f"rpiTime= {datetime.now().strftime('%H:%M:%S')} device-busy {dev_busy}")
-        return 
+        return 'busy'
 
-    t1_msg += f' - server2client - {process_time()-t1_start:.1f}s' 
+    t1_msg += f' - server2client - {elapsed(t1_start):.1f}s' 
 
     # receive good data
     dev_busy=0
-    boardTime = datetime.strptime(j['Timestamp'],'%Y-%m-%d %H:%M:%S')
-    #print(f"boardTime@capture= {boardTime.strftime('%H:%M:%S')} rpiTime= {datetime.now().strftime('%H:%M:%S')} counter={j['counter']} {(boardTime-datetime.now()).total_seconds():.1f}")
+    # boardTiem is actually 센서데이타 측정시간
+    boardTime = datetime.strptime(j['sensorTime'], "%Y-%m-%d %H:%M:%S.%f")
+    global counter
+    if counter<300:
+        print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {datetime.now()} {(boardTime-datetime.now()).total_seconds():.1f}s")
+    if counter==300:
+        print(f"showed logs for only first 300 records")
+    counter+=1
     if not gotBoardTime:
         gotBoardTime = True
         schedule_first()
@@ -843,7 +852,7 @@ def do_capture():
             t1.start()
             print("sent trigger for {aename}")
 
-    t1_msg += f' - doneTrigger - {process_time()-t1_start:.1f}s' 
+    t1_msg += f' - doneTrigger - {elapsed(t1_start):.1f}s' 
 
     # end of trigger            
 
@@ -873,7 +882,7 @@ def do_capture():
             offset_dict["TI"] = cmeasure['offset']
     '''
 
-    Time_data = j["Timestamp"]
+    Time_data = boardTime
     Temperature_data = j["TP"] + offset_dict["TP"]
     Displacement_data = j["DI"][dis_channel] + offset_dict["DI"]
     
@@ -952,10 +961,12 @@ def do_capture():
                 if schedule[aename]['measure'] <= boardTime:
                     # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
                     if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
-                        stat, t1_start, t1_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+                        stat, tx_start, tx_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+                        t1_msg += tx_msg
                         timesync=True
                     else:
-                        t1_start, t1_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
+                        tx_start, tx_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
+                        t1_msg += tx_msg
                     schedule_measureperiod(aename)
                 else:
                     nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
@@ -974,7 +985,7 @@ def do_capture():
         print(f"skip scheduling with boardTime not ready")
 
     # 데이타 전송처리 끝
-    t1_msg += f' - doneSendData - {process_time()-t1_start:.1f}s' 
+    t1_msg += f' - doneSendData - {elapsed(t1_start):.1f}s' 
 
 
     
@@ -996,7 +1007,7 @@ def do_capture():
             #print('reslstart==N, skip real time mqtt sending')
             pass
 
-    t1_msg += f' - doneMQTT - {process_time()-t1_start:.1f}s' 
+    t1_msg += f' - doneMQTT - {elapsed(t1_start):.1f}s' 
 
     # 센서별 json file 생성
     # 내 ae에 지정된 sensor type정보만을 저장
@@ -1025,15 +1036,16 @@ def do_capture():
             #print(f" creat data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
             create.ci(aename, 'data', 'dmeasure')
 
-    t1_msg += f' - doneSaving - {process_time()-t1_start:.1f}s' 
-    if process_time()-t0_start>0.5:
-        print(f'TIME do_capture elapsed= {process_time()-t0_start:.1f}s {t1_msg}')
+    t1_msg += f' - doneSaving - {elapsed(t1_start):.1f}s' 
+    if elapsed(t0_start)>0.7:
+        print(f'do_capture elapsed= {elapsed(t0_start):.1f}s {t1_msg}')
 
+    return 'ok'
 
 def do_tick():
     global ae
 
-    do_capture()
+    r = do_capture()
 
     once=True
     for aename in schedule:
@@ -1045,6 +1057,8 @@ def do_tick():
             state.report(aename)
             schedule_stateperiod(aename)
 
+    global counter
+    if counter>100000: counter=300
 
 def startup():
     global ae
