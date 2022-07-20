@@ -678,9 +678,10 @@ def do_capture():
     dev_busy=0
     # boardTiem is actually 센서데이타 측정시간
     boardTime = datetime.strptime(j['sensorTime'], "%Y-%m-%d %H:%M:%S.%f").replace(microsecond=0)
+    rpiTime = datetime.now().replace(microsecond=0)
     global counter
     if counter<300:
-        print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {datetime.now()} {(boardTime-datetime.now()).total_seconds():.1f}s")
+        print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {rpiTime} {(boardTime-rpiTime).total_seconds():.1f}s")
     if counter==300:
         print(f"showed logs for only first 300 records")
     counter+=1
@@ -951,7 +952,7 @@ def do_capture():
         if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
         if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
             m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
-            print(f'GOT 10s minutes board= {boardTime.strftime("%H:%M:%S")} rpi= {datetime.now().strftime("%H:%M:%S")} {m10[aename]}0')
+            print(f'GOT 10s minutes board= {boardTime} rpi= {datetime.now().strftime("%H:%M:%S")} {m10[aename]}0')
     
             timesync=False
             for aename in ae:
@@ -962,11 +963,9 @@ def do_capture():
                     # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
                     if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
                         stat, tx_start, tx_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
-                        t1_msg += tx_msg
                         timesync=True
                     else:
                         tx_start, tx_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
-                        t1_msg += tx_msg
                     schedule_measureperiod(aename)
                 else:
                     nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
