@@ -117,8 +117,8 @@ def jsonSave(aename, jsonFile):
         mymemory["file"][mymemory["head"].strftime('%Y-%m-%d-%H%M%S')]=jsonFile
         if sec>1: print(f'{aename} json cover missing one by adding key={mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len={len(mymemory["file"])}')
         else: 
-            rpitime = datetime.now()
-            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime.strftime("%H:%M:%S")} rpi= {rpitime.strftime("%H:%M:%S")} diff= +{(boardTime-rpitime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%Y-%m-%d %H:%M:%S")} state= {schedule[aename]["state"].strftime("%Y-%m-%d %H:%M:%S")})')
+            rpitime = datetime.now().replace(microsecond=0)
+            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime} rpi= {rpitime} diff= +{(boardTime-rpitime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%Y-%m-%d %H:%M:%S")} state= {schedule[aename]["state"].strftime("%Y-%m-%d %H:%M:%S")})')
         sec -= 1
     
     while len(mymemory["file"])>660:
