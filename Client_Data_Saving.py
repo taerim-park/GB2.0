@@ -677,7 +677,7 @@ def do_capture():
     # receive good data
     dev_busy=0
     # boardTiem is actually 센서데이타 측정시간
-    boardTime = datetime.strptime(j['sensorTime'], "%Y-%m-%d %H:%M:%S.%f")
+    boardTime = datetime.strptime(j['sensorTime'], "%Y-%m-%d %H:%M:%S.%f").replace(microsecond=0)
     global counter
     if counter<300:
         print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {datetime.now()} {(boardTime-datetime.now()).total_seconds():.1f}s")
