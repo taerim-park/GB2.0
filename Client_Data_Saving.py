@@ -65,7 +65,7 @@ gotBoardTime = False
 doneFirstShoot={}
 
 # 다중 데이터의 경우, 어떤 data를 저장할지 결정해야한다
-acc_axis = "x" # x, y, z중 택1
+acc_axis = "z" # x, y, z중 택1
 deg_axis = "x" # x, y, z중 택1
 str_axis = "x" # x, y, z중 택1
 dis_channel = "ch4" # ch4, ch5중 택1
