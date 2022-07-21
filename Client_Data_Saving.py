@@ -418,8 +418,8 @@ def do_user_command(aename, jcmd):
         return
 
     if cmd in 'autossh':
-        print("autossh ON")
-        os.system("sudo systemctl start autossh")
+        print("autossh Restart")
+        os.system("sudo systemctl restart autossh")
         return
 
     if cmd == 'inoon':
