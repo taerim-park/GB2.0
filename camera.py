@@ -35,8 +35,6 @@ def take_picture(_time, aename, t1_start, t1_msg):
     os.system(F"fswebcam -r 1920*1080 --font luxisr:48 --timestamp '%Y-%m-%d %H:%M:%S' {file_path}.jpg") # 사진촬영 명령
     ae[aename]['local']['last_picture']=f"{file_path}.jpg"
 
-    t1_msg += f' - doneTakePicture - {process_time()-t1_start:.1f}s'
-
     def upload():
         host = ae[aename]['config']['connect']['uploadip']
         port = ae[aename]['config']['connect']['uploadport']
