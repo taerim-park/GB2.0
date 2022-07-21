@@ -638,6 +638,7 @@ def do_status():
 
     for aename in ae:
         ae[aename]['state']['battery']=j['battery']
+        ae[aename]['state']['time']=j['time']
 
 
 def do_capture():
@@ -683,7 +684,7 @@ def do_capture():
     if counter<300:
         print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {rpiTime} {(boardTime-rpiTime).total_seconds():.1f}s")
     if counter==300:
-        print(f"showed logs for only first 300 records")
+        print(f"print per-second-logs for first 300 records")
     counter+=1
     if not gotBoardTime:
         gotBoardTime = True
@@ -1019,6 +1020,8 @@ def do_capture():
         jsonSave(aename, raw_json[stype])
 
         #print(raw_json[stype]["time"])
+
+        #최초 1회 data 수신시 data ci를 생성시킵니다.
         global doneFirstShoot
         if not aename in doneFirstShoot: doneFirstShoot[aename]=1
         if doneFirstShoot[aename]>0:
@@ -1032,7 +1035,7 @@ def do_capture():
                 dmeasure['type'] = "S"
             ae[aename]['data']['dmeasure'] = dmeasure
             #Timer(delay, create.ci, [aename, 'data', 'dmeasure']).start()
-            #print(f" creat data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
+            #print(f" create data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
             create.ci(aename, 'data', 'dmeasure')
 
     t1_msg += f' - doneSaving - {elapsed(t1_start):.1f}s' 
@@ -1069,8 +1072,10 @@ def startup():
         #print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'}) 
+        do_status()
         ae[aename]['state']["abflag"]="N"
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
+        if sensor_type(aename) == "CM": camera.take_picture_command(boardTime, aename)
     os.system("sudo systemctl start autossh")
 
 
@@ -1086,20 +1091,20 @@ def schedule_measureperiod(aename1):
         elif not isinstance(cmeasure['measureperiod'],int): cmeasure['measureperiod']=3600
         elif cmeasure['measureperiod']<600: cmeasure['measureperiod']=600
         cmeasure['measureperiod'] = int(cmeasure['measureperiod']/600)*600
-        print(f"cmeasure.measureperiod= {cmeasure['measureperiod']} sec")
+        #print(f"cmeasure.measureperiod= {cmeasure['measureperiod']} sec")
     
         cmeasure['rawperiod'] = int(cmeasure['measureperiod']/60)
-        print(f"cmeasure.rawperiod= {cmeasure['rawperiod']} min")
+        #print(f"cmeasure.rawperiod= {cmeasure['rawperiod']} min")
 
-        twohour = (datetime.strptime(ae[aename]['local']['upTime'], '%Y-%m-%d %H:%M:%S')+timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')
-        twohour1 = twohour[:-5]+'00:00'
-        twohour = datetime.strptime(twohour1, '%Y-%m-%d %H:%M:%S')
-        if cmeasure['measureperiod'] == 3600 and boardTime < twohour:
-            schedule[aename]['measure'] = boardTime+timedelta(seconds=600)
-            print(f'measure schedule[{aename}] for first 2 hour special window at {schedule[aename]["measure"]}')
+        if cmeasure['measureperiod'] == 3600:
+            t1 = boardTime.strftime('%Y-%m-%d %H:00:00')
+            t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 00분 정시성확보
+            schedule[aename]['measure'] = t2+ timedelta(hours=1)
         else:
-            schedule[aename]['measure'] = boardTime+timedelta(seconds=cmeasure['measureperiod'])
-            print(f'measure schedule[{aename}] at {schedule[aename]["measure"]}')
+            t1 = boardTime.strftime('%Y-%m-%d %H:%M')[:-1]+'0:00'
+            t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 00분 정시성확보
+            schedule[aename]['measure'] = t2+ timedelta(minutes=cmeasure['measureperiod']/60)
+        print(f'next measure schedule[{aename}] at {schedule[aename]["measure"]} +{cmeasure["measureperiod"]}')
 
 def schedule_stateperiod(aename1):
     global ae, schedule
@@ -1110,8 +1115,18 @@ def schedule_stateperiod(aename1):
 
         if not 'stateperiod' in cmeasure: cmeasure['stateperiod']=60 #min
         elif not isinstance(cmeasure['stateperiod'],int): cmeasure['stateperiod']=60
-        print(f"cmeasure.stateperiod= {cmeasure['stateperiod']} min")
+        #print(f"cmeasure.stateperiod= {cmeasure['stateperiod']} min")
 
+        if cmeasure['stateperiod'] == 60:
+            t1 = boardTime.strftime('%Y-%m-%d %H:01:00')
+            t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 00분 정시성확보
+            schedule[aename]['state'] = t2 + timedelta(hours=1)
+        else:
+            t1 = boardTime.strftime('%Y-%m-%d %H:%M')[:-1]+'1:00'
+            t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')
+            schedule[aename]['state'] = t2+timedelta(minutes=cmeasure['stateperiod'])
+        print(f'next state schedule[{aename}] at {schedule[aename]["state"]} +{cmeasure["stateperiod"]}')
+        '''
         onehour = (datetime.strptime(ae[aename]['local']['upTime'], '%Y-%m-%d %H:%M:%S')+timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
         onehour1 = onehour[:-5]+'00:00'
         onehour = datetime.strptime(onehour1, '%Y-%m-%d %H:%M:%S')
@@ -1120,19 +1135,25 @@ def schedule_stateperiod(aename1):
         else:
             schedule[aename]['state'] = boardTime+timedelta(minutes=cmeasure['stateperiod'])
             print(f'state schedule[{aename}] at {schedule[aename]["state"]}')
+        '''
 
+#  첫번째 데이타 수신
 def schedule_first():
-    global schedule
     for aename in ae:
-        sbtime = (boardTime+timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M:%S')
-        sbtime1 = sbtime[:15]+'0:00'
-        schedule[aename]['measure']= datetime.strptime(sbtime1, '%Y-%m-%d %H:%M:%S')
-        schedule[aename]['state']= boardTime+timedelta(seconds=3)
-        print(f"{aename} set first schedule for measure at {schedule[aename]['measure']}  state at {schedule[aename]['state']}")
+        cmeasure=ae[aename]['config']['cmeasure']
+        #schedule_measureperiod(aename)   첫번재 10분 정시에 1회만
+        t1 = boardTime.strftime('%Y-%m-%d %H:%M')[:-1]+'0:00'
+        t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 00분 정시성확보
+        schedule[aename]['measure'] = t2+ timedelta(minutes=10)
+        print(f'next measure schedule[{aename}] at 10s {schedule[aename]["measure"]} +{cmeasure["measureperiod"]}')
+        schedule_stateperiod(aename)    # 정상적 다음 일정
+        '''
+        schedule[aename]['measure']= boardTime
+        schedule[aename]['state']= boardTime+timedelta(seconds=1)
         #slack(aename, json.dumps(ae[aename]))
         #print(ae[aename])
+        '''
 
-        if sensor_type(aename) == "CM": camera.take_picture_command(boardTime, aename)
 
 for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}

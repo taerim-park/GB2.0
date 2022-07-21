@@ -448,7 +448,7 @@ def get_status_data():
     solar, battery, vdd = status_conversion(solar, battery, vdd)
 
     status_data={}
-    status_data["deviceTime"] = time_conversion( timestamp ) # board uptime 
+    status_data["time"] = time_conversion( timestamp ) # board uptime 
     status_data["battery"]   = float(f'{battery:.1f}') #battery %
     status_data["resetFlag"] = s[5]<<8 | s[4]   
     status_data["solar"]     = solar
