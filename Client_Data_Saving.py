@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220718_V1.45'
+VERSION='20220722_V1.46'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -13,6 +13,7 @@ from typing import Type
 import requests
 import json
 import os
+import math
 import sys
 import time
 import re
@@ -819,11 +820,13 @@ def do_capture():
             dtrigger['start']=boardTime.strftime("%Y-%m-%d %H:%M:%S")
             dtrigger['count'] = 1
             
-            # offset 은 서버에서 계산하다록 합니다. 현재는 클라이언트 2군데에서추가로 계산
+            # offset 은 서버에서 계산하도록 합니다. 현재는 클라이언트 2군데에서추가로 계산
             # 그런데 아래부분이  data를 만들기 때문에 삭제하면 에러가 발생.  그래서 data만 만들어지도록 둡니다.
+            # 0722 : offset 계산방식이 단순무식했음은 알겠습니다만, 서버는 conf파일을 로딩하지 않는 프로그램이기 때문에 offset을 서버에서 더하는 건 서버의 역할에 벗어나는 일이 아닐까 싶습니다.
+            # 그리고 주석처리하신 건 좋았으나 이 때문에 offset기능 자체가 없어져버렸습니다...ㅠㅠ 일단 주석 다시 살립니다.
             print(f"정적데이타offset연산  offset= {cmeasure['offset']}")
 
-            '''
+            
             if sensor_type(aename) == "DI": data = j["DI"][dis_channel]+cmeasure['offset']
             elif sensor_type(aename) == "TP": data = j["TP"]+cmeasure['offset']
             elif sensor_type(aename) == "TI": data = j["TI"][deg_axis]+cmeasure['offset'] # offset이 있는 경우, 합쳐주어야한다
@@ -833,7 +836,7 @@ def do_capture():
             elif sensor_type(aename) == "TP": data = j["TP"]
             elif sensor_type(aename) == "TI": data = j["TI"][deg_axis]
             else: data = "nope"
-
+            '''
             #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
             dtrigger['val'] = data
 
@@ -866,7 +869,6 @@ def do_capture():
         "DS":0
     }
 
-    '''
     for aename in ae:
         # skip if not measuring
         if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
@@ -882,19 +884,17 @@ def do_capture():
             offset_dict["AC"] = cmeasure['offset']
         elif type == "TI" and 'offset' in cmeasure:
             offset_dict["TI"] = cmeasure['offset']
-    '''
+        elif type == "DS" and 'offset' in cmeasure:
+            offset_dict["DS"] = cmeasure['offset']
 
-    Time_data = boardTime
-    Temperature_data = j["TP"] + offset_dict["TP"]
-    Displacement_data = j["DI"][dis_channel] + offset_dict["DI"]
-    
+    Time_data = boardTime    
     acc_list = list()
     str_list = list()
     
     for i in range(len(j["AC"])):
-        acc_list.append(j["AC"][i][acc_axis] + offset_dict["AC"])
+        acc_list.append(round(j["AC"][i][acc_axis] + offset_dict["AC"],2))
     for i in range(len(j["DS"])):
-        str_list.append(j["DS"][i][str_axis] + offset_dict["DS"]) #offset 기능 구현되어있지 않음
+        str_list.append(round(j["DS"][i][str_axis] + offset_dict["DS"],2)) #offset 기능 구현 완료
         
     #print(F"acc : {acc_list}")
     #samplerate에 따라 파일에 저장되는 data 조정
@@ -937,6 +937,8 @@ def do_capture():
     Acceleration_data = acc_list
     Strain_data = str_list
     Degree_data = j["TI"][deg_axis]+ offset_dict["TI"]
+    Temperature_data = j["TP"] + offset_dict["TP"]
+    Displacement_data = j["DI"][dis_channel] + offset_dict["DI"]
     
     # 센서의 특성을 고려해 각 센서 별로 센서 data를 담은 dict 생성
     raw_json={}
