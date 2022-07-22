@@ -20,7 +20,7 @@ import logging
 from flask import Flask, request, json
 
 # board LED, power setting
-'''
+
 import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
@@ -36,7 +36,7 @@ GPIO.output(22, True)
 GPIO.output(24, True)
 GPIO.output(25, True)
 GPIO.output(5,  False)
-
+'''
 def callback_i1(channel):
     GPIO.output(5,  False)
 
