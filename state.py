@@ -6,7 +6,7 @@ import time
 import json
 import create
 
-from conf import ae, boardTime
+from conf import ae
 
 def report(aename):
     global ae
@@ -17,11 +17,13 @@ def report(aename):
     m2=f'{100*(memory.total-memory.available)/memory.total:.1f}'
     state['memory']=float(m2)
     state['disk']= float(f"{psutil.disk_usage('/')[3]:.1f}")
+    '''
     if boardTime=="":
         state['time']= datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     else:
         state['time']= boardTime.strftime("%Y-%m-%d %H:%M:%S")
 
+    '''
     sec = time.time() - psutil.boot_time()
     days=int(sec/86400)
     sec=sec%86400
@@ -40,3 +42,5 @@ def report(aename):
     # board에서 가져온 battery는 이미 ae값에 저장되어 여기서 사용
     #print(f"state= {ae[aename]['state']}")
     create.ci(aename, 'state', '')
+    # 시간은 board에서 늘 가져온것 사용. abflag의 경우 시간은 empty
+    del state['time']
