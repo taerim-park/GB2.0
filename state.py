@@ -42,5 +42,3 @@ def report(aename):
     # board에서 가져온 battery는 이미 ae값에 저장되어 여기서 사용
     #print(f"state= {ae[aename]['state']}")
     create.ci(aename, 'state', '')
-    # 시간은 board에서 늘 가져온것 사용. abflag의 경우 시간은 empty
-    del state['time']
