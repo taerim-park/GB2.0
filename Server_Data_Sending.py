@@ -186,7 +186,9 @@ def dis_conversion(number_list):
             result_hex = '0'+result_hex
         result_str += result_hex
     result = Twos_Complement(result_str, 4)
-    result = (result-16339000)/699.6956*(1.01)
+    # per request fro Park CEO  07/23
+    #result = (result-16339000)/699.6956*(1.01)
+    result = result*0.001444961 +500
     return result
 
 # float acc_conversion(list number_list)
@@ -244,7 +246,8 @@ def strain_conversion(number_list):
             result_hex = '0'+result_hex
         result_str += result_hex
     result = Twos_Complement(result_str, 4)
-    result = result*0.00690750 # 단위는 microstrain
+    # per request from Park CEO  07/23
+    #result = result*0.00690750 # 단위는 microstrain
     return result
 
 # 220506 갱신 : 변위 변환 수식 수정 완료
@@ -419,8 +422,14 @@ def set_config_data(jdata):
     board_setting['sensorSelect'] =   int(np.uint16(0x0100))
     board_setting['highTemp'] =       int(np.int16(jdata['TP']['st1high']*100))
     board_setting['lowTemp'] =        int(np.int16(jdata['TP']['st1low']*100))
-    board_setting['highDisp'] =       int(np.uint16((jdata['DI']['st1high']*692.9678+16339000)/1024))
-    board_setting['lowDisp'] =        int(np.uint16((jdata['DI']['st1low']*692.9678+16339000)/1024))
+
+
+    # per req from Park CEO 07/23
+    #board_setting['highDisp'] =       int(np.uint16((jdata['DI']['st1high']*692.9678+16339000)/1024))
+    #board_setting['lowDisp'] =        int(np.uint16((jdata['DI']['st1low']*692.9678+16339000)/1024))
+    #old equations. to enable triggering in GBC, revise this
+    board_setting['highDisp'] =       int(np.uint16(0))
+    board_setting['lowDisp'] =        int(np.uint16(0))
 
     ###############
     board_setting['highStrain'] =     int(np.int16(0)) # strain의 보드 설정을 위한 코드 수정 필요
