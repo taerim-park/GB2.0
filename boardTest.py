@@ -235,7 +235,7 @@ ds = 0.01
 d2 = 0.1
 n = 2400
 
-TimeCorrection = int(ds * 1000) # FIXME
+TimeCorrection = 12
 
 isReady = False
 
@@ -365,26 +365,29 @@ def get_status_data():
 
     spi.xfer2([0x27])
     time.sleep(ds)
-    status_data_i_got = spi.xfer2([0x0]*14)
+    s = spi.xfer2([0x0]*14)
 
-    timestamp   = status_data_i_got[3]  << 24 | status_data_i_got[2] << 16 | status_data_i_got[1] << 8 | status_data_i_got[0] - TimeCorrection
-    solar   = status_data_i_got[7]  << 8  | status_data_i_got[6]
-    battery  = status_data_i_got[9]  << 8  | status_data_i_got[8]
-    vdd     = status_data_i_got[11] << 8  | status_data_i_got[10]
+    timestamp   = (s[3]  << 24 | s[2] << 16 | s[1] << 8 | s[0]) - TimeCorrection
+    solar   = s[7]  << 8  | s[6]
+    battery  = s[9]  << 8  | s[8]
+    vdd     = s[11] << 8  | s[10]
 
     solar, battery, vdd = status_conversion(solar, battery, vdd)
 
     status_data={}
     status_data["Timestamp"] = time_conversion( timestamp ) # board uptime
-    status_data["resetFlag"] = status_data_i_got[5]  << 8  | status_data_i_got[4]
+    status_data["resetFlag"] = s[5]  << 8  | s[4]
     status_data["solar"]     = solar #
     status_data["battery"]   = float(f'{battery:.1f}') #battery %
     status_data["vdd"]       = vdd
-    status_data["errcode"]   = status_data_i_got[13] << 8  | status_data_i_got[12]
-    print(status_data)
+    status_data["errcode"]   = s[13] << 8  | s[12]
     return(status_data)
 
-
+s1=datetime.now()
+i=0
 while True:
-    j=get_status_data()
+    #j=get_status_data()
+    #print(j)
     j=data_receiving() 
+    i+=1
+    if i>1000: break
