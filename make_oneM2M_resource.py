@@ -2,6 +2,8 @@ import requests
 import json
 import sys
 import create
+import time
+import os
 
 from conf import csename, ae
 verify_only=False
@@ -47,7 +49,12 @@ def makeit():
             "Host": F"{c['cseip']}"
         }
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}"
-        r = requests.get(url, headers=h)
+        try:
+            r = requests.get(url, headers=h)
+        except:
+            print('***** Got error accessing OneM2M Server. Restart in 10 sec')
+            time.sleep(10)
+            os._exit(0)
         print('found', 'm2m:cb', r.json()["m2m:cb"]["rn"])
         # once is enough for a board
         break
