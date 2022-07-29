@@ -55,7 +55,7 @@ info_manufacture['CM']={'serial':'T0000005','manufacturer':'Ino-on. Inc.','phone
 
 info_imeasure={}
 info_imeasure['AC']={'mode':'D','type':'AC','item':'가속도','range':'+-2G','precision':'0.01','accuracy':'0.01','meaunit':'mg','conunit':'mg','direction':'X'}
-info_imeasure['DS']={'mode':'D','type':'DS','item':'변형률','range':'?','precision':'0.01','accuracy':'0.01','meaunit':'microstrain','conunit':'microstrain','direction':'X'}
+info_imeasure['DS']={'mode':'D','type':'DS','item':'변형률','range':'+-5000','precision':'0.01','accuracy':'0.01','meaunit':'microstrain','conunit':'microstrain','direction':'X'}
 info_imeasure['DI']={'mode':'D','type':'DI','item':'변위','range':'0-500','precision':'1','accuracy':'3','meaunit':'ustrain','conunit':'mm','direction':'X'}
 info_imeasure['TP']={'mode':'D','type':'TP','item':'온도','range':'-40~+120','precision':'0.01','accuracy':'0.01','meaunit':'C degree','conunit':'C degree','direction':'X'}
 info_imeasure['TI']={'mode':'D','type':'TI','item':'경사(각도)','range':'0~90','precision':'0.01','accuracy':'0.01','meaunit':'degree','conunit':'degree','direction':'X'}
