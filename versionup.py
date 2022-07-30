@@ -36,10 +36,14 @@ def versionup(aename, url):
         warn_state(f"Already done same firmware update. {bfile}")
         return
 
-    r = requests.get(url)
-    if not r.status_code == 200:
-        print(f'got {r.status_code} for {url}')
-        return
+    try:
+        r = requests.get(url, timeout=20)
+        if not r.status_code == 200:
+            print(f'got {r.status_code} for {url}')
+            return
+    except:
+        print('***** update url failed')
+        return 
 
     os.makedirs(com)
     os.chdir(f'/home/pi/GB/{com}')
