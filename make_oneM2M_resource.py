@@ -50,12 +50,11 @@ def makeit():
         }
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}"
         try:
-            r = requests.get(url, headers=h)
+            r = requests.get(url, headers=h, timeout=30)
+            print('found', 'm2m:cb', r.json()["m2m:cb"]["rn"])
         except:
-            print('***** Got error accessing OneM2M Server. Restart in 10 sec')
-            time.sleep(10)
-            os._exit(0)
-        print('found', 'm2m:cb', r.json()["m2m:cb"]["rn"])
+            print('***** Got error querying CB. Assume that all resources are ok')
+            return
         # once is enough for a board
         break
     
@@ -63,12 +62,16 @@ def makeit():
     aeToMake = list()
     for aename in ae:
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}"
-        r = requests.get(url, headers=h)
-        j=r.json()
-        if "m2m:ae" in j:
-            print('found', r.json()["m2m:ae"]["rn"])
-        else:
-            aeToMake.append(aename)
+        try:
+            r = requests.get(url, headers=h, timeout=30)
+            j=r.json()
+            if "m2m:ae" in j:
+                print('found', r.json()["m2m:ae"]["rn"])
+            else:
+                aeToMake.append(aename)
+        except:
+            print('***** Got error querying AE. Assume that all resources are ok')
+            return
     if len(aeToMake) == 0:
         return
     

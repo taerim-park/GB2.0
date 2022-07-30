@@ -504,20 +504,28 @@ def connect_mqtt():
     mqttc.on_connect = on_connect
     mqttc.on_disconnect = on_disconnect
     mqttc.on_message = on_message
-    mqttc.connect(broker, port)
+    try:
+        mqttc.connect(broker, port)
+    except:
+        return ""
     return mqttc
 
 mqttc = connect_mqtt()
-mqttc.loop_start()
-print("mqtt 연결에 성공했습니다.")
+mqttc_retry=0
+if mqttc == "":
+    print("***** mqtt 연결실패. mqtt 스킵합니다.")
+else:    
+    mqttc.loop_start()
+    print("mqtt 연결에 성공했습니다.")
 
         
 # void mqtt_sending(aename, data)
 # mqtt 전송을 수행합니다. 단, mqtt 전송을 사용하지 않기로 한 센서라면, 수행하지 않습니다.
 # 센서에 따라 다른 TOPIC에 mqtt 메시지를 publish합니다.
 def mqtt_sending(aename, data):   
-    if mqttc=="":
-        connect_mqtt()
+    if mqttc=="": 
+        print('mqtt_sending: not conneccted. fails sending...')
+        return
 
     now = datetime.now()
     test_list = list()
