@@ -511,9 +511,10 @@ def connect_mqtt():
     return mqttc
 
 mqttc = connect_mqtt()
-mqttc_retry=0
+mqttc_failed_at=''
 if mqttc == "":
     print("***** mqtt 연결실패. mqtt 스킵합니다.")
+    mqttc_failed_at=datetime.now()
 else:    
     mqttc.loop_start()
     print("mqtt 연결에 성공했습니다.")
@@ -523,9 +524,20 @@ else:
 # mqtt 전송을 수행합니다. 단, mqtt 전송을 사용하지 않기로 한 센서라면, 수행하지 않습니다.
 # 센서에 따라 다른 TOPIC에 mqtt 메시지를 publish합니다.
 def mqtt_sending(aename, data):   
-    if mqttc=="": 
+    global mqttc, mqttc_failed_at
+    if mqttc=="" and (datetime.now() - mqttc_failed_at).total_seconds()>3600:
+        mqttc = connect_mqtt()
+    else:
         print('mqtt_sending: not conneccted. fails sending...')
         return
+
+    if mqttc=="":
+        print('***** failed to connect mqtt again. will try in 1 hour')
+        mqttc_failed_at=datetime.now()
+        return
+    else:
+        mqttc.loop_start()
+        print("mqtt 재연결에 성공했습니다.")
 
     now = datetime.now()
     test_list = list()

@@ -50,7 +50,7 @@ def makeit():
         }
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}"
         try:
-            r = requests.get(url, headers=h, timeout=30)
+            r = requests.get(url, headers=h, timeout=10)
             print('found', 'm2m:cb', r.json()["m2m:cb"]["rn"])
         except:
             print('***** Got error querying CB. Assume that all resources are ok')
@@ -63,7 +63,7 @@ def makeit():
     for aename in ae:
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}"
         try:
-            r = requests.get(url, headers=h, timeout=30)
+            r = requests.get(url, headers=h, timeout=10)
             j=r.json()
             if "m2m:ae" in j:
                 print('found', r.json()["m2m:ae"]["rn"])
