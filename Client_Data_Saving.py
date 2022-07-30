@@ -525,14 +525,14 @@ else:
 # 센서에 따라 다른 TOPIC에 mqtt 메시지를 publish합니다.
 def mqtt_sending(aename, data):   
     global mqttc, mqttc_failed_at
-    if mqttc=="" and (datetime.now() - mqttc_failed_at).total_seconds()>3600:
+    if mqttc=="" and (datetime.now() - mqttc_failed_at).total_seconds()>600:
         mqttc = connect_mqtt()
     else:
-        print('mqtt_sending: not conneccted. fails sending...')
+        print('mqtt_sending: not conneccted. skip sending...')
         return
 
     if mqttc=="":
-        print('***** failed to connect mqtt again. will try in 1 hour')
+        print('***** failed to connect mqtt again. will try in 10 minutes')
         mqttc_failed_at=datetime.now()
         return
     else:
