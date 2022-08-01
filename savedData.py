@@ -212,7 +212,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         #print(f"file compression has completed > {zip_file_name}")
 
         try:
-            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")})
+            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")}, timeout=10)
             print(f'TIMER: {aename} result= {r.text}')
         except Exception as e:
             print(f'TIMER: fail-to-upload {aename} file={zip_file_name}')

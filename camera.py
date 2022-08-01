@@ -41,7 +41,7 @@ def take_picture(_time, aename, t1_start, t1_msg):
         url = F"http://{host}:{port}/upload"
         print(f'{aename} upload url= {url} {time}_{aename}')
         try:
-            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(f"{file_path}.jpg", "rb")})
+            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(f"{file_path}.jpg", "rb")}, timeout=15)
             print(f'TIMER: {aename} result= {r.text}')
         except Exception as e:
             print(f'TIMER: fail-to-upload {aename} file={file_path}')
@@ -70,7 +70,7 @@ def take_picture_command(_time, aename):
         url = F"http://{host}:{port}/upload"
         print(f'{aename} upload url= {url} {time}_{aename}')
         try:
-            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(f"{file_path}.jpg", "rb")})
+            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(f"{file_path}.jpg", "rb")}, timeout=15)
             print(f'TIMER: {aename} result= {r.text}')
         except Exception as e:
             print(f'TIMER: fail-to-upload {aename} file={file_path}')

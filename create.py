@@ -41,7 +41,7 @@ def ci(aename, cnt, subcnt):
               
     gotok=False
     try:
-        r = requests.post(url, data=json.dumps(body), headers=h)
+        r = requests.post(url, data=json.dumps(body), headers=h, timeout=10)
         r.raise_for_status()
         if "m2m:dbg" in r.json():
             print(f'got error {r.json}')
@@ -54,8 +54,10 @@ def ci(aename, cnt, subcnt):
                 print(f'  created ci {aename}/{cnt}{x}/{r.json()["m2m:cin"]["rn"]} {json.dumps(r.json()["m2m:cin"]["con"], ensure_ascii=False)}')
             slack(aename, f'created {url}/{r.json()["m2m:cin"]["rn"]}')
             gotok=True
+        return True
     except requests.exceptions.RequestException as e:
-        print(f'failed to ci {e}')
+        print(f'***** failed to ci {e}')
+        return False
 
 
 # (ae.323376-TP_A1_01_X, {'info','config'})
@@ -65,7 +67,9 @@ def allci(aei, all):
         for subcnti in ae[aei][cnti]:
             if cnti in all:
                 #print(f'allci {aei}/{cnti}/{subcnti}')
-                ci(aei, cnti, subcnti)
+                if not ci(aei, cnti, subcnti):
+                    print(f'***** skip creating {aei} {cnti} {subcnti}')
+                    return
 
 if __name__== "__main__":
     doit()
