@@ -94,8 +94,8 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     global root, ae, memory
     print(f'create ci for {aename}')
     cmeasure = ae[aename]['config']['cmeasure']
-    save_path = F"{root}/merged_data/{sensor_type(aename)}"
-    j = raw_json[sensor_type(aename)]
+    save_path = F"{root}/merged_data/{aename}"
+    j = raw_json[aename]
     boardTime = datetime.strptime(j['time'],'%Y-%m-%d %H:%M:%S')
     if not os.path.exists(save_path): os.makedirs(save_path)
 
