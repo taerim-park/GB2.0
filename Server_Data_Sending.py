@@ -92,9 +92,18 @@ def time_conversion(stamp):
     return Time_Stamp["BaseTime"] + timedelta(milliseconds = c_delta)
 
 def status_conversion(solar, battery, vdd):
+    """
     solar   = 0.003013 * solar + 1.2824
     battery = battery / 4096 * 100  # 12-bit
     vdd     = vdd / 4096 * 100      # 12-bit
+    """
+    if solar >65000 :
+        solar = 0
+    else :
+        solar   = (solar*0.003809)/14.7*100        # linear voltage %, not capacity %
+
+    battery = (battery*0.001222)/4.2* 100      # linear voltage %, not capacity %
+    vdd     = (vdd*0.000879)/ 3.3 * 100        # % 
 
     return solar, battery, vdd
 
@@ -217,9 +226,9 @@ def deg_conversion(number_list):
         if len(result_hex)<2:
             result_hex = '0'+result_hex
         result_str += result_hex
-    result_int = Twos_Complement(result_str, 2)
+    result_int = Twos_Complement(result_str, 4)
     result = float(result_int)
-    result /= 100
+    result /= 10000
     return result
 
 # float tem_conversion(list number_list)
@@ -319,15 +328,15 @@ def data_receiving():
         time.sleep(ds)
 
         #print("s:"+ "0x40")
-        rcv4 = spi.xfer2([0x40]*16) # follow up action
+        rcv4 = spi.xfer2([0x40]*22) # follow up action
         #print(rcv4)
-        degreeX = deg_conversion(rcv4[0:2]) + Offset['TI'] 
-        degreeY = deg_conversion(rcv4[2:4]) + Offset['TI'] 
-        degreeZ = deg_conversion(rcv4[4:6]) + Offset['TI'] 
-        Temperature = tem_conversion(rcv4[6:8]) + Offset['TP'] 
-        Displacement_ch4 = dis_conversion(rcv4[8:12]) + Offset['DI']
+        degreeX = deg_conversion(rcv4[0:4]) + Offset['TI'] 
+        degreeY = deg_conversion(rcv4[4:8]) + Offset['TI'] 
+        degreeZ = deg_conversion(rcv4[8:12]) + Offset['TI'] 
+        Temperature = tem_conversion(rcv4[12:14]) + Offset['DI']
         # 식을 dis_conversion으로 변경하여 해결하였음
-        Displacement_ch5 = dis_conversion(rcv4[12:]) + Offset['DI']
+        Displacement_ch4 = dis_conversion(rcv4[14:16]) + Offset['DI']
+        Displacement_ch5 = dis_conversion(rcv4[16:]) + Offset['DI']
         json_data["TI"] = {"x":degreeX, "y":degreeY, "z":degreeZ}
         json_data["TP"] = Temperature
         json_data["DI"] = {"ch4":Displacement_ch4, "ch5":Displacement_ch5}
@@ -459,10 +468,10 @@ def get_status_data():
 
     status_data={}
     status_data["time"] = time_conversion(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-    status_data["battery"]   = float(f'{battery:.1f}') #battery %
+    status_data["battery"]   = float(f'{battery:.1f}') # internal battery %
     status_data["resetFlag"] = s[5]<<8 | s[4]   
-    status_data["solar"]     = solar
-    status_data["vdd"]       = vdd
+    status_data["solar"]     = float(f'{solar:.1f}') # external battery %
+    status_data["vdd"]       = float(f'{vdd:.1f}') # V
     status_data["errcode"]   = s[13]<<8 | s[12]  
     return(status_data)
 
