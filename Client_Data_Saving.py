@@ -679,9 +679,13 @@ def do_status():
         return
 
     for aename in ae:
-        ae[aename]['state']['battery']=j['battery']
-        ae[aename]['state']['solar']=j['solar']
-        ae[aename]['state']['time']=j['time']
+        state=ae[aename]['state']
+        state['battery']=j['battery']
+        state['solar']=j['solar']
+        state['time']=j['time']
+        state['vdd']=j['vdd']
+        state['resetFlag']=j['resetFlag']
+        state['errcode']=j['errcode']
 
 
 def do_capture():
@@ -711,7 +715,7 @@ def do_capture():
     #print(f"got j={j}")
 
     global dev_busy
-    if j['Status'] == 'False':
+    if j['Status'].startswith('False'):
         dev_busy +=1
         if dev_busy > 1: print(f"rpiTime= {datetime.now().strftime('%H:%M:%S')} device-busy {dev_busy}")
         return 'busy'
@@ -1288,10 +1292,7 @@ def a_dinfo():
     # RSSI, 태양광, 내부 배터리 전원
     # 1차: 쓸 값만 - 가속도, 기울기, 변위, 변형률, 온도
     # 시리얼, 펌웨어, 모뎀 정보 
-    global ae
-
     do_status()
-
     r=''
     for aename in ae:
         #r+=f'battery: {ae[aename]['state']['battery']}'
@@ -1303,14 +1304,12 @@ def a_dinfo():
         r+=f'Version : {VERSION}'
         print(r)
         
-        break; 
-
     r = f"<html><head><meta http-equiv=refresh content=3></head><body>{r}</body>"
+    #r = f"<html><body>{r}</body>"
     return r
 
 @app.route('/camera')
 def a_camera():
-    global ae
     for aename in ae:
         if sensor_type(aename) == "CM":
             print(f" last_picture= {ae[aename]['local']['last_picture']}")

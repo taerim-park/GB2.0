@@ -18,6 +18,9 @@ import re
 import os
 import logging
 from flask import Flask, request, json
+from threading import Thread, Lock
+import threading
+mutex=threading.Lock()
 
 # board LED, power setting
 
@@ -484,7 +487,10 @@ def get_status_data():
     solar = s[7]<<8 | s[6]
     vdd = s[11]<<8 | s[10]
 
+    #r=f'solar,battery,vdd= {solar},{battery},{vdd} ==> '
     solar, battery, vdd = status_conversion(solar, battery, vdd)
+    #r+=f' {solar},{battery},{vdd}'
+    #print(r)
 
     status_data={}
     status_data["time"] = time_conversion(timestamp).strftime('%Y-%m-%d %H:%M:%S')
@@ -503,19 +509,44 @@ def sync():
 
 @app.route('/capture')
 def capture():
+    mutex.acquire(blocking=True, timeout=0.5)
+    if not mutex.locked():
+        print('data_capture: mutex failed')
+        data={}
+        data['Origin']='capture'
+        data['Status']='False: mutex fail'
+        return data
     data = data_receiving()
+    mutex.release()
     data['Origin']='capture'
     return data
 
 @app.route('/status')
 def status():
+    mutex.acquire(blocking=True, timeout=0.5)
+    if not mutex.locked():
+        print('status_capture: mutex failed')
+        data={}
+        data['Origin']='status'
+        data['Status']='False: mutex fail'
+        return data
+
     data=get_status_data()
+    mutex.release()
     data["Status"]="Ok"
     data["Origin"]='status'
     return data
 
 @app.route('/config', methods=['GET', 'POST'])
 def config():
+    mutex.acquire(blocking=True, timeout=0.5)
+    if not mutex.locked():
+        print('config: mutex failed')
+        data={}
+        data['Origin']='config'
+        data['Status']='False: mutex fail'
+        return data
+
     sending_config_data = [0x09]
     Config_data = set_config_data(request.json)
     print(f'CONFIG wrote to board')
@@ -529,7 +560,7 @@ def config():
         sending_config_data.append(tmp & 0xff) 
         sending_config_data.append(tmp >> 8)
     rcv = spi.xfer2(sending_config_data)
-
+    mutex.release()
     return {"Status":"Ok", "Origin":"config"}
 
 if __name__ == '__main__':
