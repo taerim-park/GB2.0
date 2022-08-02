@@ -65,11 +65,34 @@ trigger_activated={}
 gotBoardTime = False
 doneFirstShoot={}
 
+def sensor_type(aename):
+    return aename.split('-')[1][0:2]
+
+'''
 # 다중 데이터의 경우, 어떤 data를 저장할지 결정해야한다
 acc_axis = "z" # x, y, z중 택1
 deg_axis = "x" # x, y, z중 택1
 str_axis = "x" # x, y, z중 택1
 dis_channel = "ch4" # ch4, ch5중 택1
+아래 펑션으로 대체
+'''
+def acc_axis(aename):
+    return aename[-1].lower()
+
+def deg_axis(aename):
+    return aename[-1].lower()
+
+def str_axis(aename):
+    return aename[-1].lower()
+
+def dis_channel(aename):
+    if aename[-1]=='X': return 'ch4'
+    elif aename[-1]=='Y': return 'ch5'
+    else:
+        print(f'Format error in aename {aename}')
+        print(f'DI type sensor supports X or Y only')
+        os._exit(0)
+
 
 def sigint_handler(signal, frame):
     print()
@@ -78,8 +101,6 @@ def sigint_handler(signal, frame):
     os._exit(0)
 signal.signal(signal.SIGINT, sigint_handler)
 
-def sensor_type(aename):
-    return aename.split('-')[1][0:2]
 
 
 make_oneM2M_resource.makeit()
@@ -504,20 +525,40 @@ def connect_mqtt():
     mqttc.on_connect = on_connect
     mqttc.on_disconnect = on_disconnect
     mqttc.on_message = on_message
-    mqttc.connect(broker, port)
+    try:
+        mqttc.connect(broker, port)
+    except:
+        return ""
     return mqttc
 
 mqttc = connect_mqtt()
-mqttc.loop_start()
-print("mqtt 연결에 성공했습니다.")
+mqttc_failed_at=''
+if mqttc == "":
+    print("***** mqtt 연결실패. mqtt 스킵합니다.")
+    mqttc_failed_at=datetime.now()
+else:    
+    mqttc.loop_start()
+    print("mqtt 연결에 성공했습니다.")
 
         
 # void mqtt_sending(aename, data)
 # mqtt 전송을 수행합니다. 단, mqtt 전송을 사용하지 않기로 한 센서라면, 수행하지 않습니다.
 # 센서에 따라 다른 TOPIC에 mqtt 메시지를 publish합니다.
 def mqtt_sending(aename, data):   
+    global mqttc, mqttc_failed_at
+    if mqttc=="" and (datetime.now() - mqttc_failed_at).total_seconds()>600:
+        mqttc = connect_mqtt()
+    else:
+        print('mqtt_sending: not conneccted. skip sending...')
+        return
+
     if mqttc=="":
-        connect_mqtt()
+        print('***** failed to connect mqtt again. will try in 10 minutes')
+        mqttc_failed_at=datetime.now()
+        return
+    else:
+        mqttc.loop_start()
+        print("mqtt 재연결에 성공했습니다.")
 
     now = datetime.now()
     test_list = list()
@@ -683,10 +724,10 @@ def do_capture():
     boardTime = datetime.strptime(j['sensorTime'], "%Y-%m-%d %H:%M:%S.%f").replace(microsecond=0)
     rpiTime = datetime.now().replace(microsecond=0)
     global counter
-    if counter<300:
+    if counter<180:
         print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {rpiTime} {(boardTime-rpiTime).total_seconds():.1f}s")
-    if counter==300:
-        print(f"print per-second-logs for first 300 records")
+    if counter==180:
+        print(f"print per-second-logs for first 3 minutes")
     counter+=1
     if not gotBoardTime:
         gotBoardTime = True
@@ -694,216 +735,219 @@ def do_capture():
 
     # print(f"trigger= {j['trigger']}"
 
+    '''
+    보드에서는 모든 센서 데이타를 한방에 다 가져온다.
+    이미, j 변수에는 그 값이 담겨져 있다.
+    conf.py 에 설정된 aename 각각 루프를 돌면서 필요한 값을 처리하는 형식.
+    '''
+
     # start of trigger
     for aename in ae: 
-        if sensor_type(aename) == "CM": # 카메라는 trigger동작을 하지 않기 때문에 넘긴다
-            continue
         ctrigger=ae[aename]['config']['ctrigger']
         cmeasure=ae[aename]['config']['cmeasure']
         dtrigger=ae[aename]['data']['dtrigger']
-        #print(f"aename= {aename} stype= {sensor_type(aename)} use= {ctrigger['use']}")
-
-        def print_trigger(trig):
-            msg =""
-            for x in trig: 
-                if msg != "": msg += " "
-                if trig[x]=='1': msg+=f"{x}"
-            return msg
-
-        def all_trigger(trig):
-            for x in trig: 
-                if trig[x]=='1': return True
-            return False
-
-        # trigger counter가 살아있으면 -1  downcount
-        if trigger_activated[aename] >0: 
-            trigger_activated[aename] -= 1
-            print(f" trigger-counting-afsec-{trigger_activated[aename]}")
-            continue
-
-        # aename에 트리거 이미 진행중인 경우 먼저 처리
-        if trigger_activated[aename]==0:  # afsec 충족된 상태
-            do_trigger_followup(aename)
-            trigger_activated[aename]=-1  # -1 값이면 no trigger in progress
-            continue
-
-        tmsg=""
-        # We do have (a) trigger(s)
-        if all_trigger(j['trigger']):
-            tmsg=f" got-trigger {print_trigger(j['trigger'])}"
-
-        # skip if not for me
-        if j['trigger'][sensor_type(aename)]=='0': 
-            #tmsg +=  f" not-for-me-{aename}-skip"
-            #print(tmsg)
-            continue
+        local=ae[aename]['local']
+        stype = sensor_type(aename)
 
         # skip if not measuring
-        if cmeasure['measurestate'] != 'measuring':
-            #tmsg += f" not-measuring-{aename}-skip"
-            #print(tmsg)
-            continue
+        if cmeasure['measurestate'] != 'measuring': continue
 
-        # skip if not enabled
-        if ctrigger['use'] not in {'Y','y'}:
-            #tmsg+= f" not-enabled-{aename}-skip"
-            #print(tmsg)
-            continue
-
-        # 새로운 trigger 처리
-        if sensor_type(aename) == "AC": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
-            trigger_list = j["AC"]
-            trigger_data = "unknown"
-            for ac in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
-                if ctrigger['mode'] == 1 and ac[acc_axis] > ctrigger['st1high']:
-                    trigger_data = ac[acc_axis]
-                    break
-                elif ctrigger['mode'] == 2 and ac[acc_axis] < ctrigger['st1low']:
-                    trigger_data = ac[acc_axis]
-                    break
-                elif ctrigger['mode'] == 3:
-                    if ac[acc_axis] > ctrigger['st1high'] and ac[acc_axis] < ctrigger['st1low']:
-                        trigger_data = ac[acc_axis]
-                        break
-                elif ctrigger['mode'] == 4:
-                    if ac[acc_axis] < ctrigger['st1high'] and ac[acc_axis] > ctrigger['st1low']:
-                        trigger_data = ac[acc_axis]
-                        break
-
-            if trigger_data == "unknown":
-                print(f" not-for-me-trig-condition-skip")
+        # 카메라('CM')외 센서들만 해당
+        if stype in {'AC','DS','DI','TP','TI'}:  
+            #print(f"aename= {aename} stype= {stype} use= {ctrigger['use']}")
+    
+            def print_trigger(trig):
+                msg =""
+                for x in trig: 
+                    if msg != "": msg += " "
+                    if trig[x]=='1': msg+=f"{x}"
+                return msg
+    
+            def all_trigger(trig):
+                for x in trig: 
+                    if trig[x]=='1': return True
+                return False
+    
+            # trigger counter가 살아있으면 -1  downcount
+            if trigger_activated[aename] >0: 
+                trigger_activated[aename] -= 1
+                print(f" trigger-counting-afsec-{trigger_activated[aename]}")
                 continue
-                
-            dtrigger['val'] = trigger_data
-
-            print(f" got-trigger-new-{aename}-bfsec={ctrigger['bfsec']}-afsec={ctrigger['afsec']}")
-            if isinstance(ctrigger['afsec'],int) and ctrigger['afsec']>0: 
-                trigger_activated[aename]=ctrigger['afsec']
-            else: 
-                trigger_activated[aename]=60  # value error, 60 instead
-
-        
-        elif sensor_type(aename) == "DS": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
-            trigger_list = j["DS"]
-            trigger_data = "unknown"
-            for st in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
-                if ctrigger['mode'] == 1 and st[str_axis] > ctrigger['st1high']:
-                    trigger_data = st[str_axis]
-                    break
-                elif ctrigger['mode'] == 2 and st[str_axis] < ctrigger['st1low']:
-                    trigger_data = st[str_axis]
-                    break
-                elif ctrigger['mode'] == 3:
-                    if st[str_axis] > ctrigger['st1high'] and st[str_axis]< ctrigger['st1low']:
-                        trigger_data = st[str_axis]
-                        break
-                elif ctrigger['mode'] == 4:
-                    if st[str_axis] < ctrigger['st1high'] and st[str_axis] > ctrigger['st1low']:
-                        trigger_data = st[str_axis]
-                        break
-
-            
-            if trigger_data == "unknown":
-                print(f" not-for-me-trig-condition-skip")
+    
+            # aename에 트리거 이미 진행중인 경우 먼저 처리
+            if trigger_activated[aename]==0:  # afsec 충족된 상태
+                do_trigger_followup(aename)
+                trigger_activated[aename]=-1  # -1 값이면 no trigger in progress
                 continue
+    
+            tmsg=""
+            # We do have (a) trigger(s)
+            if all_trigger(j['trigger']):
+                tmsg=f" got-trigger {print_trigger(j['trigger'])}"
+    
+            # skip if not for me
+            if j['trigger'][stype]=='0': 
+                #tmsg +=  f" not-for-me-{aename}-skip"
+                #print(tmsg)
+                continue
+    
+            # skip if not measuring
+            if cmeasure['measurestate'] != 'measuring':
+                #tmsg += f" not-measuring-{aename}-skip"
+                #print(tmsg)
+                continue
+    
+            # skip if not enabled
+            if ctrigger['use'] not in {'Y','y'}:
+                #tmsg+= f" not-enabled-{aename}-skip"
+                #print(tmsg)
+                continue
+    
+            # 새로운 trigger 처리
+            if stype == "AC": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
+                trigger_list = j["AC"]
+                trigger_data = "unknown"
+                for ac in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
+                    if ctrigger['mode'] == 1 and ac[acc_axis(aename)] > ctrigger['st1high']:
+                        trigger_data = ac[acc_axis(aename)]
+                        break
+                    elif ctrigger['mode'] == 2 and ac[acc_axis(aename)] < ctrigger['st1low']:
+                        trigger_data = ac[acc_axis(aename)]
+                        break
+                    elif ctrigger['mode'] == 3:
+                        if ac[acc_axis(aename)] > ctrigger['st1high'] and ac[acc_axis(aename)] < ctrigger['st1low']:
+                            trigger_data = ac[acc_axis(aename)]
+                            break
+                    elif ctrigger['mode'] == 4:
+                        if ac[acc_axis(aename)] < ctrigger['st1high'] and ac[acc_axis(aename)] > ctrigger['st1low']:
+                            trigger_data = ac[acc_axis(aename)]
+                            break
+    
+                if trigger_data == "unknown":
+                    print(f" not-for-me-trig-condition-skip")
+                    continue
+                    
+                dtrigger['val'] = trigger_data
+    
+                print(f" got-trigger-new-{aename}-bfsec={ctrigger['bfsec']}-afsec={ctrigger['afsec']}")
+                if isinstance(ctrigger['afsec'],int) and ctrigger['afsec']>0: 
+                    trigger_activated[aename]=ctrigger['afsec']
+                else: 
+                    trigger_activated[aename]=60  # value error, 60 instead
+    
+            
+            elif stype == "DS": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
+                trigger_list = j["DS"]
+                trigger_data = "unknown"
+                for st in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
+                    if ctrigger['mode'] == 1 and st[str_axis(aename)] > ctrigger['st1high']:
+                        trigger_data = st[str_axis(aename)]
+                        break
+                    elif ctrigger['mode'] == 2 and st[str_axis(aename)] < ctrigger['st1low']:
+                        trigger_data = st[str_axis(aename)]
+                        break
+                    elif ctrigger['mode'] == 3:
+                        if st[str_axis(aename)] > ctrigger['st1high'] and st[str_axis(aename)]< ctrigger['st1low']:
+                            trigger_data = st[str_axis(aename)]
+                            break
+                    elif ctrigger['mode'] == 4:
+                        if st[str_axis(aename)] < ctrigger['st1high'] and st[str_axis(aename)] > ctrigger['st1low']:
+                            trigger_data = st[str_axis(aename)]
+                            break
+    
                 
-            dtrigger['val'] = trigger_data
-
-            print(f" got-trigger-new-{aename}-bfsec={ctrigger['bfsec']}-afsec={ctrigger['afsec']}")
-            if isinstance(ctrigger['afsec'],int) and ctrigger['afsec']>0: 
-                trigger_activated[aename]=ctrigger['afsec']
-            else: 
-                trigger_activated[aename]=60  # value error, 60 instead
-
-        else:
-            # 정적 데이터의 경우, 트리거 발생 당시의 데이터를 전송한다
-            print(f"got non-AC trigger {aename}  bfsec= {ctrigger['bfsec']}  afsec= {ctrigger['afsec']}")
-            dtrigger['start']=boardTime.strftime("%Y-%m-%d %H:%M:%S")
-            dtrigger['count'] = 1
-            
-            # offset 은 서버에서 계산하도록 합니다. 현재는 클라이언트 2군데에서추가로 계산
-            # 그런데 아래부분이  data를 만들기 때문에 삭제하면 에러가 발생.  그래서 data만 만들어지도록 둡니다.
-            # 0722 : offset 계산방식이 단순무식했음은 알겠습니다만, 서버는 conf파일을 로딩하지 않는 프로그램이기 때문에 offset을 서버에서 더하는 건 서버의 역할에 벗어나는 일이 아닐까 싶습니다.
-            # 그리고 주석처리하신 건 좋았으나 이 때문에 offset기능 자체가 없어져버렸습니다...ㅠㅠ 일단 주석 다시 살립니다.
-            print(f"정적데이타offset연산  offset= {cmeasure['offset']}")
-
-            
-            if sensor_type(aename) == "DI": data = j["DI"][dis_channel]+cmeasure['offset']
-            elif sensor_type(aename) == "TP": data = j["TP"]+cmeasure['offset']
-            elif sensor_type(aename) == "TI": data = j["TI"][deg_axis]+cmeasure['offset'] # offset이 있는 경우, 합쳐주어야한다
-            else: data = "nope"
-            '''
-            if sensor_type(aename) == "DI": data = j["DI"][dis_channel]
-            elif sensor_type(aename) == "TP": data = j["TP"]
-            elif sensor_type(aename) == "TI": data = j["TI"][deg_axis]
-            else: data = "nope"
-            '''
-            #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
-            dtrigger['val'] = data
-
-        dtrigger['time']=boardTime.strftime("%Y-%m-%d %H:%M:%S") # 트리거 신호가 발생한 당시의 시각
-        dtrigger['mode']=ctrigger['mode']
-        dtrigger['sthigh']=ctrigger['st1high']
-        dtrigger['stlow']=ctrigger['st1low']
-        dtrigger['step']=1
-        dtrigger['samplerate']=cmeasure['samplerate']
-
-        # AC need afsec
-        if sensor_type(aename) == "AC" or sensor_type(aename) == "DS":
-            #print("will process after afsec sec")
-            pass
-        else:
-            #create.ci(aename, "data", "dtrigger") # 정적 트리거 전송은 따로 do_trigger_followup을 실행하지 않는다.
-            t1 = Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
-            t1.start()
-            print("sent trigger for {aename}")
-
-    t1_msg += f' - doneTrigger - {elapsed(t1_start):.1f}s' 
-
+                if trigger_data == "unknown":
+                    print(f" not-for-me-trig-condition-skip")
+                    continue
+                    
+                dtrigger['val'] = trigger_data
+    
+                print(f" got-trigger-new-{aename}-bfsec={ctrigger['bfsec']}-afsec={ctrigger['afsec']}")
+                if isinstance(ctrigger['afsec'],int) and ctrigger['afsec']>0: 
+                    trigger_activated[aename]=ctrigger['afsec']
+                else: 
+                    trigger_activated[aename]=60  # value error, 60 instead
+    
+            else:
+                # 정적 데이터의 경우, 트리거 발생 당시의 데이터를 전송한다
+                print(f"got non-AC trigger {aename}  bfsec= {ctrigger['bfsec']}  afsec= {ctrigger['afsec']}")
+                dtrigger['start']=boardTime.strftime("%Y-%m-%d %H:%M:%S")
+                dtrigger['count'] = 1
+                
+                # offset 은 서버에서 계산하도록 합니다. 현재는 클라이언트 2군데에서추가로 계산
+                # 그런데 아래부분이  data를 만들기 때문에 삭제하면 에러가 발생.  그래서 data만 만들어지도록 둡니다.
+                # 0722 : offset 계산방식이 단순무식했음은 알겠습니다만, 서버는 conf파일을 로딩하지 않는 프로그램이기 때문에 offset을 서버에서 더하는 건 서버의 역할에 벗어나는 일이 아닐까 싶습니다.
+                # 그리고 주석처리하신 건 좋았으나 이 때문에 offset기능 자체가 없어져버렸습니다...ㅠㅠ 일단 주석 다시 살립니다.
+                print(f"정적데이타offset연산  offset= {cmeasure['offset']}")
+                
+                if stype == "DI": data = j["DI"][dis_channel(aename)]+cmeasure['offset']
+                elif stype == "TP": data = j["TP"]+cmeasure['offset']
+                elif stype == "TI": data = j["TI"][deg_axis(aename)]+cmeasure['offset'] # offset이 있는 경우, 합쳐주어야한다
+                else: data = "nope"
+                #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
+                dtrigger['val'] = data
+    
+            dtrigger['time']=boardTime.strftime("%Y-%m-%d %H:%M:%S") # 트리거 신호가 발생한 당시의 시각
+            dtrigger['mode']=ctrigger['mode']
+            dtrigger['sthigh']=ctrigger['st1high']
+            dtrigger['stlow']=ctrigger['st1low']
+            dtrigger['step']=1
+            dtrigger['samplerate']=cmeasure['samplerate']
+    
+            # AC need afsec
+            if stype == "AC" or stype == "DS":
+                #print("will process after afsec sec")
+                pass
+            else:
+                #create.ci(aename, "data", "dtrigger") # 정적 트리거 전송은 따로 do_trigger_followup을 실행하지 않는다.
+                t1 = Thread(target=create.ci, args=(aename, 'data', 'dtrigger'))
+                t1.start()
+                print("sent trigger for {aename}")
+    
+            t1_msg += f' - doneTrigger - {elapsed(t1_start):.1f}s' 
+    
     # end of trigger            
 
-    offset_dict = {
-        "AC":0,
-        "DI":0,
-        "TP":0,
-        "TI":0,
-        "DS":0
-    }
 
-    for aename in ae:
-        # skip if not measuring
-        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
-
+    for aename in ae: 
+        ctrigger=ae[aename]['config']['ctrigger']
         cmeasure=ae[aename]['config']['cmeasure']
-        type = sensor_type(aename)
+        dtrigger=ae[aename]['data']['dtrigger']
+        local=ae[aename]['local']
+        stype = sensor_type(aename)
 
-        if type == 'TP' and 'offset' in cmeasure:
-            offset_dict["TP"] = cmeasure['offset']
-        elif type == 'DI' and 'offset' in cmeasure:
-            offset_dict["DI"] = cmeasure['offset']
-        elif type == "AC" and 'offset' in cmeasure:
-            offset_dict["AC"] = cmeasure['offset']
-        elif type == "TI" and 'offset' in cmeasure:
-            offset_dict["TI"] = cmeasure['offset']
-        elif type == "DS" and 'offset' in cmeasure:
-            offset_dict["DS"] = cmeasure['offset']
+        # skip if not measuring
+        if cmeasure['measurestate'] != 'measuring': continue
 
-    Time_data = boardTime    
-    acc_list = list()
-    str_list = list()
-    
-    for i in range(len(j["AC"])):
-        acc_list.append(round(j["AC"][i][acc_axis] + offset_dict["AC"],2))
-    for i in range(len(j["DS"])):
-        str_list.append(round(j["DS"][i][str_axis] + offset_dict["DS"],2)) #offset 기능 구현 완료
+        offset_dict = {
+            "AC":0,
+            "DI":0,
+            "TP":0,
+            "TI":0,
+            "DS":0
+        }
+
+
+        if stype == 'TP' and 'offset' in cmeasure: offset_dict["TP"] = cmeasure['offset']
+        elif stype == 'DI' and 'offset' in cmeasure: offset_dict["DI"] = cmeasure['offset']
+        elif stype == "AC" and 'offset' in cmeasure: offset_dict["AC"] = cmeasure['offset']
+        elif stype == "TI" and 'offset' in cmeasure: offset_dict["TI"] = cmeasure['offset']
+        elif stype == "DS" and 'offset' in cmeasure: offset_dict["DS"] = cmeasure['offset']
+
+        if stype=='AC':
+            acc_list = list()
+            for i in range(len(j["AC"])): acc_list.append(round(j["AC"][i][acc_axis(aename)] + offset_dict["AC"],2))
+        elif stype=='DS':
+            str_list = list()
+            for i in range(len(j["DS"])): str_list.append(round(j["DS"][i][str_axis(aename)] + offset_dict["DS"],2)) #offset 기능 구현 완료
         
-    #print(F"acc : {acc_list}")
-    #samplerate에 따라 파일에 저장되는 data 조정
-    #현재 가속도 센서와 변형률 센서에 적용중
-    for aename in ae:
+        #print(F"acc : {acc_list}")
+        #samplerate에 따라 파일에 저장되는 data 조정
+        #현재 가속도 센서와 변형률 센서에 적용중
+    
         # 동적 데이터의 경우, samplerate가 100이 아닌 경우에 대처한다
-        if sensor_type(aename)=="AC" or sensor_type(aename)=="DS":
-            ae_samplerate = float(ae[aename]["config"]["cmeasure"]["samplerate"])
+        if stype=="AC" or stype=="DS":
+            ae_samplerate = float(cmeasure["samplerate"])
             if ae_samplerate != 100:
                 if 100%ae_samplerate != 0:
                     #100의 약수가 아닌 samplerate가 설정되어있는 경우, 오류가 발생한다
@@ -913,7 +957,7 @@ def do_capture():
                 merged_value = 0
                 merge_count = 0
                 sample_number = 100//ae_samplerate
-                if sensor_type(aename)=="AC":
+                if stype=="AC":
                     new_acc_list = list()
                     for i in range(len(acc_list)):
                         merged_value += acc_list[i]
@@ -935,37 +979,28 @@ def do_capture():
                     str_list = new_str_list
             #print("samplerate calculation end")
             #print(acc_list)
-    Acceleration_data = acc_list
-    Strain_data = str_list
-    Degree_data = j["TI"][deg_axis]+ offset_dict["TI"]
-    Temperature_data = j["TP"] + offset_dict["TP"]
-    Displacement_data = j["DI"][dis_channel] + offset_dict["DI"]
-    
-    # 센서의 특성을 고려해 각 센서 별로 센서 data를 담은 dict 생성
-    raw_json={}
-    raw_json['TI'] = jsonCreate('TI', Time_data, Degree_data)
-    raw_json['TP'] = jsonCreate('TP', Time_data, Temperature_data)
-    raw_json['DI'] = jsonCreate('DI', Time_data, Displacement_data)
-    raw_json['AC'] = jsonCreate('AC', Time_data, Acceleration_data)
-    raw_json['DS'] = jsonCreate('DS', Time_data, Strain_data)
-    
 
-    # boardTime이 정시가딘것이  확인되면 먼저 데이타 전송  처리작업을 한다.  10분의 기간이 10:00 ~ 19:99 이기때문
-    if gotBoardTime:
-        if aename not in m10: m10[aename]=""
-        if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
-        if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
-            m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
-            print(f'GOT 10s minutes board= {boardTime} rpi= {datetime.now().strftime("%H:%M:%S")} {m10[aename]}0')
+        # 센서의 특성을 고려해 각 센서 별로 센서 data를 담은 dict 생성
+        raw_json={}
+        if stype=='TI': raw_json[aename] = jsonCreate('TI', boardTime, j["TI"][deg_axis(aename)]+ offset_dict["TI"])
+        elif stype=='TP': raw_json[aename] = jsonCreate('TP', boardTime, j["TP"] + offset_dict["TP"])
+        elif stype=='DI':raw_json[aename] = jsonCreate('DI', boardTime, j["DI"][dis_channel(aename)] + offset_dict["DI"])
+        elif stype=='AC':raw_json[aename] = jsonCreate('AC', boardTime, acc_list)
+        elif stype=='DS':raw_json[aename] = jsonCreate('DS', boardTime, str_list)
+
+        # boardTime이 정시가딘것이  확인되면 먼저 데이타 전송  처리작업을 한다.  10분의 기간이 10:00 ~ 19:99 이기때문
+        if gotBoardTime:
+            if aename not in m10: m10[aename]=""
+            if m10[aename]=="": m10[aename] = f'{boardTime.minute}'.zfill(2)[0]  # do not run at first, run first when we get new 10 minute
+            if m10[aename] != f'{boardTime.minute}'.zfill(2)[0]:  # we got new 10 minute
+                m10[aename] = f'{boardTime.minute}'.zfill(2)[0]
+                print(f'GOT 10s minutes board= {boardTime} rpi= {datetime.now().strftime("%H:%M:%S")} {m10[aename]}0')
     
-            timesync=False
-            for aename in ae:
-                # skip if not measuring
-                if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+                timesync=False
     
                 if schedule[aename]['measure'] <= boardTime:
                     # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
-                    if sensor_type(aename) != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
+                    if stype != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
                         stat, tx_start, tx_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
                         timesync=True
                     else:
@@ -974,55 +1009,47 @@ def do_capture():
                 else:
                     nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
                     print(f"no work now.  time to next measure= {nsec/60:.1f}min.")
-                    if nsec>ae[aename]['config']['cmeasure']['measureperiod']:
+                    if nsec>cmeasure['measureperiod']:
                         schedule_measureperiod(aename)
                         nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
                         print(f"fixed wrong schedule time.  new time to next measure= {nsec/60:.1f}min.")
                     savedData.remove_old_data(aename, boardTime)
     
-            # 매 데이타 처리후에만 sync 실시
-            if timesync:
-                print('At 10min time ', end='')
-                do_timesync()
-    else:
-        print(f"skip scheduling with boardTime not ready")
+                # 매 데이타 처리후에만 sync 실시
+                if timesync:
+                    print('At 10min time ', end='')
+                    do_timesync()
+        else:
+            print(f"skip scheduling with boardTime not ready")
 
-    # 데이타 전송처리 끝
-    t1_msg += f' - doneSendData - {elapsed(t1_start):.1f}s' 
+        # 데이타 전송처리 끝
+        t1_msg += f' - doneSendData - {elapsed(t1_start):.1f}s' 
 
 
     
-    # mqtt 전송을 시행하기로 했다면 mqtt 전송 시행
-    # 내 device의 ae에 지정된 sensor type 정보만을 전송
-    for aename in ae:
-        # skip if not measuring
-        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+        # mqtt 전송을 시행하기로 했다면 mqtt 전송 시행
+        # 내 device의 ae에 지정된 sensor type 정보만을 전송
 
         # stype 은 'AC' 와 같은 부분
-        stype = sensor_type(aename)
         if stype == 'CM' : continue # 카메라는 mqtt 전송을 시행하지 않음
-        #print(f"mqtt {aename} {stype} {ae[aename]['local']['realstart']}")
-        if ae[aename]['local']['realstart']=='Y':  # mqtt_realtime is controlled from remote user
-            payload = raw_json[stype]["data"]
+        #print(f"mqtt {aename} {stype} {local['realstart']}")
+        if local['realstart']=='Y':  # mqtt_realtime is controlled from remote user
+            payload = raw_json[aename]["data"]
             mqtt_sending(aename, payload)
             #print(F'real mqtt /{csename}/{aename}/realtime')
         else:
             #print('reslstart==N, skip real time mqtt sending')
             pass
 
-    t1_msg += f' - doneMQTT - {elapsed(t1_start):.1f}s' 
+        t1_msg += f' - doneMQTT - {elapsed(t1_start):.1f}s' 
 
-    # 센서별 json file 생성
-    # 내 ae에 지정된 sensor type정보만을 저장
-    for aename in ae:
-        # skip if not measuring
-        if ae[aename]['config']['cmeasure']['measurestate'] != 'measuring': continue
+        # 센서별 json file 생성
+        # 내 ae에 지정된 sensor type정보만을 저장
 
-        stype = sensor_type(aename)
         if stype == 'CM' : continue # 카메라는 json 전송을 시행하지 않음
-        jsonSave(aename, raw_json[stype])
+        jsonSave(aename, raw_json[aename])
 
-        #print(raw_json[stype]["time"])
+        #print(raw_json[aename]["time"])
 
         #최초 1회 data 수신시 data ci를 생성시킵니다.
         global doneFirstShoot
@@ -1030,8 +1057,8 @@ def do_capture():
         if doneFirstShoot[aename]>0:
             doneFirstShoot[aename] -= 1
             dmeasure = {}
-            dmeasure['val'] = raw_json[stype]["data"]
-            dmeasure['time'] = raw_json[stype]["time"]
+            dmeasure['val'] = raw_json[aename]["data"]
+            dmeasure['time'] = raw_json[aename]["time"]
             if stype == "AC" or stype == "DS":
                 dmeasure['type'] = "D"
             else:
@@ -1041,7 +1068,7 @@ def do_capture():
             #print(f" create data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
             create.ci(aename, 'data', 'dmeasure')
 
-    t1_msg += f' - doneSaving - {elapsed(t1_start):.1f}s' 
+        t1_msg += f' - doneSaving - {elapsed(t1_start):.1f}s' 
     if elapsed(t0_start)>0.7:
         print(f'do_capture elapsed= {elapsed(t0_start):.1f}s {t1_msg}')
 

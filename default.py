@@ -1,3 +1,4 @@
+import os
 #####################################################################
 #                   AC:Accelerator 가속도, DI:Displacement 변위, Temperature, TI:Degree 경사, DS:Distortion 변형률, CM:Camera 카메라
 supported_sensors = {'AC', 'DI', 'TP', 'TI', 'DS', 'CM'}
@@ -25,7 +26,7 @@ config_cmeasure['TI']={'sensitivity':20,'samplerate':"1/3600",'usefft':'N','meas
 config_cmeasure["CM"]={'measurestate':'measuring'} # CM은 cmeasure의 일부 스테이터스만 사용함.
 
 #                                     sec 3600          min 60           min 60
-cmeasure2={'offset':0,'measureperiod':600,'stateperiod':60,'rawperiod':60,
+cmeasure2={'offset':0,'measureperiod':3600,'stateperiod':60,'rawperiod':60,
         'st1min':2.1, 'st1max':2.6, 'st2min':3.01, 'st2max':4.01, 'st3min':5.01, 'st3max':6.01, 'st4min':7.01, 'st4max':8.01,
         'st5min':9.01, 'st5max':10.01, 'st6min':11.01, 'st6max':12.01, 'st7min':13.01, 'st7max':14.01, 'st8min':15.01, 'st8max':16.01,
         'st9min':17.01, 'st9max':18.01, 'st10min':19.01, 'st10max':20.01,'formula':'센서값*Factor+Offset'}
@@ -77,9 +78,17 @@ def make_ae(aename, csename, install, config_connect):
     global config_ctrigger, config_time, config_cmeasure, info_manufacture, info_imeasure, state, data_dtrigger, data_fft, data_dmeasure
     sensor_id= aename.split('-')[1]
     sensor_type = sensor_id[0:2]
+    sensor_direction = aename[-2:]
+
     if not sensor_type in supported_sensors:
-        print('unknown sensor definition')
-        return
+        print(f'unknown sensor definition {sensor_type}')
+        print(f'supported sensor type= {supported_sensors}')
+        os._exit(0)
+
+    if not sensor_direction in {'_X', '_Y', '_Z'}:
+        print(f'Format error in AE near direction {aename}')
+        print(f'direction must be any one of {{"_X", "_Y", "_Z"}}')
+        os._exit(0)
 
     ae[aename]= {
         'config':{'ctrigger':{}, 'time':{}, 'cmeasure':{}, 'connect':{}},
@@ -100,7 +109,7 @@ def make_ae(aename, csename, install, config_connect):
         ae[aename]['data']['dtrigger'].update(data_dtrigger)
         ae[aename]['data']['fft'].update(data_fft)
         ae[aename]['data']['dmeasure'].update(data_dmeasure)
-    ae[aename]['local']={'printtick':'N', 'realstart':'N', 'name':aename, 'upTime':"", 'serial': getserial()}
+    ae[aename]['local']={'printtick':'N', 'realstart':'N', 'name':aename, 'upTime':"", 'serial': getserial(), 'mqtt':True}
     TOPIC_list[aename]=F'/{csename}/{aename}/realtime'
 
 def getserial():

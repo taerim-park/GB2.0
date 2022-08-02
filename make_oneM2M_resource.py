@@ -2,6 +2,8 @@ import requests
 import json
 import sys
 import create
+import time
+import os
 
 from conf import csename, ae
 verify_only=False
@@ -47,8 +49,12 @@ def makeit():
             "Host": F"{c['cseip']}"
         }
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}"
-        r = requests.get(url, headers=h)
-        print('found', 'm2m:cb', r.json()["m2m:cb"]["rn"])
+        try:
+            r = requests.get(url, headers=h, timeout=10)
+            print('found', 'm2m:cb', r.json()["m2m:cb"]["rn"])
+        except:
+            print('***** Got error querying CB. Assume that all resources are ok')
+            return
         # once is enough for a board
         break
     
@@ -56,12 +62,16 @@ def makeit():
     aeToMake = list()
     for aename in ae:
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}"
-        r = requests.get(url, headers=h)
-        j=r.json()
-        if "m2m:ae" in j:
-            print('found', r.json()["m2m:ae"]["rn"])
-        else:
-            aeToMake.append(aename)
+        try:
+            r = requests.get(url, headers=h, timeout=10)
+            j=r.json()
+            if "m2m:ae" in j:
+                print('found', r.json()["m2m:ae"]["rn"])
+            else:
+                aeToMake.append(aename)
+        except:
+            print('***** Got error querying AE. Assume that all resources are ok')
+            return
     if len(aeToMake) == 0:
         return
     

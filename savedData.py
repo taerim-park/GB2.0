@@ -94,8 +94,8 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
     global root, ae, memory
     print(f'create ci for {aename}')
     cmeasure = ae[aename]['config']['cmeasure']
-    save_path = F"{root}/merged_data/{sensor_type(aename)}"
-    j = raw_json[sensor_type(aename)]
+    save_path = F"{root}/merged_data/{aename}"
+    j = raw_json[aename]
     boardTime = datetime.strptime(j['time'],'%Y-%m-%d %H:%M:%S')
     if not os.path.exists(save_path): os.makedirs(save_path)
 
@@ -212,7 +212,7 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
         #print(f"file compression has completed > {zip_file_name}")
 
         try:
-            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")})
+            r = requests.post(url, data = {"keyValue1":12345}, files = {"attachment":open(zip_file_name, "rb")}, timeout=10)
             print(f'TIMER: {aename} result= {r.text}')
         except Exception as e:
             print(f'TIMER: fail-to-upload {aename} file={zip_file_name}')
