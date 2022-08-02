@@ -67,6 +67,7 @@ spi.open(spi_bus, spi_device)
 spi.max_speed_hz = 100000 #100MHz
 
 #하드웨어 보드의 설정상태 저장
+board_fw = 0.03
 board_setting = {} 
 
 rq_cmd = [0x01]*6
@@ -226,9 +227,15 @@ def deg_conversion(number_list):
         if len(result_hex)<2:
             result_hex = '0'+result_hex
         result_str += result_hex
-    result_int = Twos_Complement(result_str, 4)
-    result = float(result_int)
-    result /= 10000
+    
+    if board_fw < 0.03:
+        result_int = Twos_Complement(result_str, 2)
+        result = float(result_int)
+        result /= 100
+    else: 
+        result_int = Twos_Complement(result_str, 4)
+        result = float(result_int)
+        result /= 10000
     return result
 
 # float tem_conversion(list number_list)
@@ -327,16 +334,29 @@ def data_receiving():
         #print("static sensor data signal")
         time.sleep(ds)
 
-        #print("s:"+ "0x40")
-        rcv4 = spi.xfer2([0x40]*22) # follow up action
-        #print(rcv4)
-        degreeX = deg_conversion(rcv4[0:4]) + Offset['TI'] 
-        degreeY = deg_conversion(rcv4[4:8]) + Offset['TI'] 
-        degreeZ = deg_conversion(rcv4[8:12]) + Offset['TI'] 
-        Temperature = tem_conversion(rcv4[12:14]) + Offset['DI']
-        # 식을 dis_conversion으로 변경하여 해결하였음
-        Displacement_ch4 = dis_conversion(rcv4[14:16]) + Offset['DI']
-        Displacement_ch5 = dis_conversion(rcv4[16:]) + Offset['DI']
+            #print("s:"+ "0x40")
+        if board_fw <0.03 :
+            rcv4 = spi.xfer2([0x40]*16) # follow up action
+            #print(rcv4)
+            degreeX = deg_conversion(rcv4[0:2]) + Offset['TI'] 
+            degreeY = deg_conversion(rcv4[2:4]) + Offset['TI'] 
+            degreeZ = deg_conversion(rcv4[4:6]) + Offset['TI'] 
+            Temperature = tem_conversion(rcv4[6:8]) + Offset['DI']
+            # 식을 dis_conversion으로 변경하여 해결하였음
+            Displacement_ch4 = dis_conversion(rcv4[8:12]) + Offset['DI']
+            Displacement_ch5 = dis_conversion(rcv4[12:]) + Offset['DI']
+        else: 
+            #print("s:"+ "0x40")
+            rcv4 = spi.xfer2([0x40]*22) # follow up action
+            #print(rcv4)
+            degreeX = deg_conversion(rcv4[0:4]) + Offset['TI'] 
+            degreeY = deg_conversion(rcv4[4:8]) + Offset['TI'] 
+            degreeZ = deg_conversion(rcv4[8:12]) + Offset['TI'] 
+            Temperature = tem_conversion(rcv4[12:14]) + Offset['DI']
+            # 식을 dis_conversion으로 변경하여 해결하였음
+            Displacement_ch4 = dis_conversion(rcv4[14:18]) + Offset['DI']
+            Displacement_ch5 = dis_conversion(rcv4[18:]) + Offset['DI']
+
         json_data["TI"] = {"x":degreeX, "y":degreeY, "z":degreeZ}
         json_data["TP"] = Temperature
         json_data["DI"] = {"ch4":Displacement_ch4, "ch5":Displacement_ch5}
