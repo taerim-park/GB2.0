@@ -680,6 +680,7 @@ def do_status():
 
     for aename in ae:
         ae[aename]['state']['battery']=j['battery']
+        ae[aename]['state']['solar']=j['solar']
         ae[aename]['state']['time']=j['time']
 
 
@@ -1192,6 +1193,7 @@ for aename in ae:
 
 @app.route('/')
 def a_status():
+    """
     r='<H3>AE 설정 확인</H3>'
     for aename in ae: r+= f"<li><a href=/ae?aename={aename}>{aename}</a>"
     r+='<H3>최종 데이타 확인</H3>'
@@ -1202,6 +1204,30 @@ def a_status():
     r+= f"<li><a href=/rssi>rssi 확인</a>"
     r+='<H3>카메라 영상  확인</H3>'
     r+= f"<li><a href=/camera>Camera 확인</a>"
+    r+='<H3>Device Info</H3>'
+    r+= f"<li><a href=/deviceInfo>Device Info</a>"
+    """
+
+    r='<H1>Ino-Vibe GB</H1>'
+    r+='<hr>'
+    r+='<H2>AE 설정 확인</H2>'
+    for aename in ae: r+= f"<li><a href=/ae?aename={aename} style='text-decoration:none;'>{aename}</a>"
+    r+='<hr>'
+    r+='<H2>최종 데이타 확인</H2>'
+    for aename in ae: 
+        print(aename, sensor_type(aename))
+        if sensor_type(aename) != "CM": r+= f"<li><a href=/data?aename={aename} style='text-decoration:none;'>{aename}</a>"
+    r+='<hr>'
+    r+='<H2>RSSI 확인</H2>'
+    r+= f"<li><a href=/rssi style='text-decoration:none;'>rssi 확인</a>"
+    r+='<hr>'
+    r+='<H2>카메라 영상  확인</H2>'
+    r+= f"<li><a href=/camera style='text-decoration:none;'>Camera 확인</a>"
+    r+='<hr>'
+    r+='<H3>Device Info</H3>'
+    r+= f"<li><a href=/deviceInfo>Device Info</a>"
+    r+='<hr>'
+    r+= f"Copyrightⓒ2022. Ino-on Inc. All Rights Reserved."
 
     return r
 
@@ -1255,6 +1281,31 @@ def a_rssi():
     for i in range(len(stat)):
         r+=f"<li>{stat[i]}"
     r = f"<html><head><meta http-equiv=refresh content=1></head><body>{r}</body>"
+    return r
+
+@app.route('/deviceInfo')
+def a_dinfo():
+    # RSSI, 태양광, 내부 배터리 전원
+    # 1차: 쓸 값만 - 가속도, 기울기, 변위, 변형률, 온도
+    # 시리얼, 펌웨어, 모뎀 정보 
+    global ae
+
+    do_status()
+
+    r=''
+    for aename in ae:
+        #r+=f'battery: {ae[aename]['state']['battery']}'
+        solar =float(list({ae[aename]['state']['solar']})[0])*14.7/100
+        battery =float(list({ae[aename]['state']['battery']})[0])*4.2/100
+        r+=f'External battery: {solar:.2f} V <br>'
+        r+=f'Internal battery: {battery:.2f} V <br>'
+        r+=f'<br>'
+        r+=f'Version : {VERSION}'
+        print(r)
+        
+        break; 
+
+    r = f"<html><head><meta http-equiv=refresh content=3></head><body>{r}</body>"
     return r
 
 @app.route('/camera')
