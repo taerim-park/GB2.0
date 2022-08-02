@@ -639,6 +639,7 @@ def do_status():
 
     for aename in ae:
         ae[aename]['state']['battery']=j['battery']
+        ae[aename]['state']['solar']=j['solar']
         ae[aename]['state']['time']=j['time']
 
 
@@ -1175,6 +1176,8 @@ def a_status():
     r+= f"<li><a href=/rssi>rssi 확인</a>"
     r+='<H3>카메라 영상  확인</H3>'
     r+= f"<li><a href=/camera>Camera 확인</a>"
+    r+='<H3>Device Info</H3>'
+    r+= f"<li><a href=/deviceInfo>Device Info</a>"
 
     return r
 
@@ -1228,6 +1231,27 @@ def a_rssi():
     for i in range(len(stat)):
         r+=f"<li>{stat[i]}"
     r = f"<html><head><meta http-equiv=refresh content=1></head><body>{r}</body>"
+    return r
+
+@app.route('/deviceInfo')
+def a_dinfo():
+    # RSSI, 태양광, 내부 배터리 전원
+    # 1차: 쓸 값만 - 가속도, 기울기, 변위, 변형률, 온도
+    # 시리얼, 펌웨어, 모뎀 정보 
+    global ae
+
+    r=''
+    for aename in ae:
+        #r+=f'battery: {ae[aename]['state']['battery']}'
+        solar ={ae[aename]['state']['solar']}
+        battery ={ae[aename]['state']['battery']}
+        r+=f'External battery: {solar:.1f} V <br>'
+        r+=f'Internal battery: {battery:.1f} V'
+        print(r)
+        
+        break; 
+
+    r = f"<html><head><meta http-equiv=refresh content=3></head><body>{r}</body>"
     return r
 
 @app.route('/camera')
