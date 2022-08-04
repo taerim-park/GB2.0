@@ -1,4 +1,3 @@
-from distutils.log import info
 import os
 #####################################################################
 #                   AC:Accelerator 가속도, DI:Displacement 변위, Temperature, TI:Degree 경사, DS:Distortion 변형률, CM:Camera 카메라
