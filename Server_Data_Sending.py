@@ -344,21 +344,22 @@ def data_receiving():
             degreeX = deg_conversion(rcv4[0:2]) + Offset['TI'] 
             degreeY = deg_conversion(rcv4[2:4]) + Offset['TI'] 
             degreeZ = deg_conversion(rcv4[4:6]) + Offset['TI'] 
-            Temperature = tem_conversion(rcv4[6:8]) + Offset['DI']
+            Temperature = tem_conversion(rcv4[6:8]) + Offset['TP']
             # 식을 dis_conversion으로 변경하여 해결하였음
             Displacement_ch4 = dis_conversion(rcv4[8:12]) + Offset['DI']
             Displacement_ch5 = dis_conversion(rcv4[12:]) + Offset['DI']
         else: 
             #print("s:"+ "0x40")
-            rcv4 = spi.xfer2([0x40]*22) # follow up action
+            rcv4 = spi.xfer2([0x40]*24) # follow up action
             #print(rcv4)
             degreeX = deg_conversion(rcv4[0:4]) + Offset['TI'] 
             degreeY = deg_conversion(rcv4[4:8]) + Offset['TI'] 
             degreeZ = deg_conversion(rcv4[8:12]) + Offset['TI'] 
-            Temperature = tem_conversion(rcv4[12:14]) + Offset['DI']
+            Temperature = tem_conversion(rcv4[12:14]) + Offset['TP']
+            # 14~15 is skipped by mcu compiler!
             # 식을 dis_conversion으로 변경하여 해결하였음
-            Displacement_ch4 = dis_conversion(rcv4[14:18]) + Offset['DI']
-            Displacement_ch5 = dis_conversion(rcv4[18:]) + Offset['DI']
+            Displacement_ch4 = dis_conversion(rcv4[16:20]) + Offset['DI']
+            Displacement_ch5 = dis_conversion(rcv4[20:]) + Offset['DI']
 
         json_data["TI"] = {"x":degreeX, "y":degreeY, "z":degreeZ}
         json_data["TP"] = Temperature

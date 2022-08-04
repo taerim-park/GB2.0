@@ -1303,6 +1303,7 @@ def a_dinfo():
         r+=f'<br>'
         r+=f'Version : {VERSION}'
         print(r)
+        break
         
     r = f"<html><head><meta http-equiv=refresh content=3></head><body>{r}</body>"
     #r = f"<html><body>{r}</body>"
