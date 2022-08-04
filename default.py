@@ -102,6 +102,7 @@ def make_ae(aename, csename, install, config_connect):
     ae[aename]['config']['cmeasure'].update(config_cmeasure[sensor_type])
     ae[aename]['config']['connect'].update(config_connect)
     ae[aename]['info']['manufacture'].update(info_manufacture[sensor_type])
+    ae[aename]['info']['manufacture']['serial'] = getserial()
     ae[aename]['info']['install'].update(install)
     ae[aename]['info']['install']['sensorid']=sensor_id
     ae[aename]['info']['imeasure'].update(info_imeasure[sensor_type])

@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220722_V1.46'
+VERSION='20220801_V1.5'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -1279,7 +1279,7 @@ stat=[]
 
 @app.route('/rssi')
 def a_rssi():
-    stat.insert(0, F"{datetime.now().strftime('%H:%M:%S')} {myserial.read()}")
+    stat.insert(0, F"{datetime.now().strftime('%H:%M:%S')} RSSI value : {myserial.read().split(',')[2]}")
     if len(stat)>10: del stat[10]
     r=''
     for i in range(len(stat)):

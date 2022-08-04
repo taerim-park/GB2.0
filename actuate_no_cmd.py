@@ -34,13 +34,15 @@ def actuate(aename, cmd):
 
 
 config_json = {
-  "cmd":"realstart"
+  "cmd":"setmeasure",
+  "measureperiod":600
 }
 
-
+actuate("ae.11001100-TI_S1M_01_X", config_json)
 
 # 이하로는 실제 현장에 설치된 테스트 센서의 AE 리스트 #
 ####################################################
+
 ## 테스트 센서 1 : 태리IC(상)/(하) ##
 
 #1 : 상행선 가속도
@@ -70,15 +72,15 @@ config_json = {
 
 #1
 #actuate('ae.001685-TP_S2Q2_01', config_json)
-#actuate(F'ae.001685-AC_S2Q2_01_Z', config_json)
+#actuate('ae.001685-AC_S2Q2_01_Z', config_json)
 
 #2
 #actuate('ae.001685-DS_S1Q2_01_X', config_json)
 #actuate('ae.001685-AC_S1Q2_01_Z', config_json)
 
 #3
-#actuate(F'ae.001685-TI_A1_01_XY', config_json)
-#actuate(F'ae.001685-CM_A1_01', config_json)
-#actuate(F'ae.001685-DI_S1Q0_01_X', config_json)
+#actuate('ae.001685-TI_A1_01_XY', config_json)
+#actuate('ae.001685-CM_A1_01', config_json)
+#actuate('ae.001685-DI_S1Q0_01_X', config_json)
 
 ####################################################
