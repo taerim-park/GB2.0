@@ -1279,7 +1279,7 @@ stat=[]
 
 @app.route('/rssi')
 def a_rssi():
-    stat.insert(0, F"{datetime.now().strftime('%H:%M:%S')} {myserial.read()}")
+    stat.insert(0, F"{datetime.now().strftime('%H:%M:%S')} RSSI value : {myserial.read().split(',')[2]}")
     if len(stat)>10: del stat[10]
     r=''
     for i in range(len(stat)):
@@ -1303,6 +1303,7 @@ def a_dinfo():
         r+=f'<br>'
         r+=f'Version : {VERSION}'
         print(r)
+        break
         
     r = f"<html><head><meta http-equiv=refresh content=3></head><body>{r}</body>"
     #r = f"<html><body>{r}</body>"
