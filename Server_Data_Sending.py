@@ -267,8 +267,16 @@ def strain_conversion(number_list):
     result = Twos_Complement(result_str, 4)
     # per request from Park CEO  07/23
     #result = result*0.00690750 # 단위는 microstrain
-    result = result*0.02889922 # 단위는 microstrain
+    #result = result*0.02889922 # half bridge 
+    result =  result*0.0144496 # full bridge
     return result
+
+def simpleLowPassFilter(prev_val, measured):
+    
+    tau = 3             # around 0.05Hz cut off
+    filtered_value = (tau*prev_val + 1*measured)/(tau+1)
+
+    return filtered_value
 
 # 220506 갱신 : 변위 변환 수식 수정 완료
 
@@ -301,9 +309,20 @@ Offset={'AC':0,'DI':0,'TI':0,'TP':0}
 # dict data_receiving()
 # 센서로부터 data bit를 받아, 그것을 적절한 int값으로 변환합니다.
 # return value는 모든 센서 데이터를 포함하고 있는 dictionary 데이터입니다.
+PrevXdeg =0
+PrevYdeg =0
+PrevZdeg =0
+PrevCh4 = 0
+PrevCh5 = 0
+
 def data_receiving():
     global Offset
     global Time_Stamp
+    global PrevXdeg
+    global PrevYdeg
+    global PrevZdeg
+    global PrevCh4
+    global PrevCh5
     #print("s:0x24")        # request header
     rcv1 = spi.xfer2([0x24])
     #print("header data signal")
@@ -355,15 +374,31 @@ def data_receiving():
             degreeX = deg_conversion(rcv4[0:4]) + Offset['TI'] 
             degreeY = deg_conversion(rcv4[4:8]) + Offset['TI'] 
             degreeZ = deg_conversion(rcv4[8:12]) + Offset['TI'] 
+
+            degreeX = simpleLowPassFilter(PrevXdeg,degreeX)
+            degreeY = simpleLowPassFilter(PrevYdeg,degreeY)
+            degreeZ = simpleLowPassFilter(PrevZdeg,degreeZ)
+
+            PrevXdeg = degreeX
+            PrevYdeg = degreeY
+            PrevZdeg = degreeZ
+            
             Temperature = tem_conversion(rcv4[12:14]) + Offset['TP']
             # 14~15 is skipped by mcu compiler!
             # 식을 dis_conversion으로 변경하여 해결하였음
             Displacement_ch4 = dis_conversion(rcv4[16:20]) + Offset['DI']
             Displacement_ch5 = dis_conversion(rcv4[20:]) + Offset['DI']
 
+            Displacement_ch4 = simpleLowPassFilter(PrevCh4, Displacement_ch4)
+            Displacement_ch5 = simpleLowPassFilter(PrevCh5, Displacement_ch5)
+
+            PrevCh4 = Displacement_ch4
+            PrevCh5 = Displacement_ch5
+
         json_data["TI"] = {"x":degreeX, "y":degreeY, "z":degreeZ}
         json_data["TP"] = Temperature
         json_data["DI"] = {"ch4":Displacement_ch4, "ch5":Displacement_ch5}
+
         time.sleep(ds)
  
         #print("s:"+ "0x25")        # request data    
