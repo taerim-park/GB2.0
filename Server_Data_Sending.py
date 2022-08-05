@@ -39,6 +39,9 @@ GPIO.output(22, True)
 GPIO.output(24, True)
 GPIO.output(25, True)
 GPIO.output(5,  False)
+
+
+
 '''
 def callback_i1(channel):
     GPIO.output(5,  False)
@@ -68,6 +71,10 @@ spi_device = 0
 spi = spidev.SpiDev()
 spi.open(spi_bus, spi_device)
 spi.max_speed_hz = 100000 #100MHz
+
+#flush buffer first
+spi.xfer2([0x41])
+print('Flushing board buffer')
 
 #하드웨어 보드의 설정상태 저장
 board_fw = 0.03
