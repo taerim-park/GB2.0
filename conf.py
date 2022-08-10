@@ -27,8 +27,8 @@ install= {"date":"2022-04-25","place":"금남2교(하)","placecode":F"{bridge}",
 connect={"cseip":host,"cseport":7579,"csename":csename,"cseid":csename,"mqttip":host,"mqttport":port,"uploadip":uploadhost,"uploadport":uploadport}
 
 # AC X,Y,Z can't coexist in current conf
-make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
-ae[F'ae.{bridge}-AC_S1M_01_X']['local']['axis']='y'
+make_ae(F'ae.{bridge}-AC_S1M_01_Y', csename, install, connect)
+ae[F'ae.{bridge}-AC_S1M_01_Y']['local']['axis']='z'
 #make_ae(F'ae.{bridge}-AC_S1M_02_Y', csename, install, connect)
 #make_ae(F'ae.{bridge}-AC_S1M_03_Z', csename, install, connect)
 #make_ae(F'ae.{bridge}-DS_S1M_01_X', csename, install, connect)
@@ -76,4 +76,4 @@ def slack(aename, msg):
 
 
 if __name__ == "__main__":
-    print(ae)
+    print(json.dumps(ae, ensure_ascii=False,indent=4))
