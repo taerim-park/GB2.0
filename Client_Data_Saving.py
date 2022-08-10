@@ -76,14 +76,16 @@ str_axis = "x" # x, y, z중 택1
 dis_channel = "ch4" # ch4, ch5중 택1
 아래 펑션으로 대체
 '''
+
 def acc_axis(aename):
+    if 'axis' in ae[aename]['local']: return ae[aename]['local']['axis']
     return aename[-1].lower()
 
 def deg_axis(aename):
-    return aename[-1].lower()
+    return acc_axis(aename)
 
 def str_axis(aename):
-    return aename[-1].lower()
+    return acc_axis(aename)
 
 def dis_channel(aename):
     if aename[-1]=='X': return 'ch4'
@@ -1110,7 +1112,7 @@ def startup():
         ae[aename]['state']["abflag"]="N"
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
         if sensor_type(aename) == "CM": camera.take_picture_command(boardTime, aename)
-    os.system("sudo systemctl start autossh")
+        print(f"MAP {aename} --> using Sensor {acc_axis(aename)}")
 
 
 # schedule measureperiod
