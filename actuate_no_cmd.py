@@ -34,11 +34,12 @@ def actuate(aename, cmd):
 
 
 config_json = {
-  "cmd":"setmeasure",
-  "measureperiod":600
+  "cmd":"settrigger",
+  "use":"N"
+
 }
 
-actuate("ae.11001100-TI_S1M_01_X", config_json)
+actuate("ae.11001100-AC_S1M_01_X", config_json)
 
 # 이하로는 실제 현장에 설치된 테스트 센서의 AE 리스트 #
 ####################################################

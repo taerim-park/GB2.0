@@ -331,6 +331,10 @@ def do_user_command(aename, jcmd):
             for x in k1: m += f" {x}"
             warn_state(m)
             return
+        if "mode" in jcmd:
+            if not jcmd["mode"] in {1, 2, 3, 4}: # mode는 오로지 숫자 1, 2, 3, 4만을 입력으로 받는다 #테스트요망
+                warn_state("ctrigger->mode must be 1 or 2 or 3 or 4")
+                return
 
         #cmeasure 명령어의 키워드 유효성 검사
         k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'st2max', 'st2min', 'st3max', 'st3min', 'st4max', 'st4min', 'st5max', 'st5min', 'st6max', 'st6min', 'st7max', 'st7min', 'st8max', 'st8min', 'st9max', 'st9min', 'st10max', 'st10min','formula', 'samplerate'}
@@ -550,18 +554,20 @@ def mqtt_sending(aename, data):
     global mqttc, mqttc_failed_at
     if mqttc=="" and (datetime.now() - mqttc_failed_at).total_seconds()>600:
         mqttc = connect_mqtt()
-    else:
-        print('mqtt_sending: not conneccted. skip sending...')
-        return
+        #연결을 시도했음에도 불구하고 연결이 되지 않았다면 mqtt 전송을 스킵 #테스트요망
+        if mqttc=="":
+            print('mqtt_sending: not conneccted. skip sending...')
+            return
 
     if mqttc=="":
         print('***** failed to connect mqtt again. will try in 10 minutes')
         mqttc_failed_at=datetime.now()
         return
+    '''
     else:
         mqttc.loop_start()
         print("mqtt 재연결에 성공했습니다.")
-
+    '''
     now = datetime.now()
     test_list = list()
     if type(data) == type(test_list):
@@ -821,7 +827,7 @@ def do_capture():
                         trigger_data = ac[acc_axis(aename)]
                         break
                     elif ctrigger['mode'] == 3:
-                        if ac[acc_axis(aename)] > ctrigger['st1high'] and ac[acc_axis(aename)] < ctrigger['st1low']:
+                        if ac[acc_axis(aename)] > ctrigger['st1high'] or ac[acc_axis(aename)] < ctrigger['st1low']:
                             trigger_data = ac[acc_axis(aename)]
                             break
                     elif ctrigger['mode'] == 4:
