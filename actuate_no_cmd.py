@@ -32,11 +32,8 @@ def actuate(aename, cmd):
     r = requests.post(url, data=json.dumps(body), headers=h)
     print(url, json.dumps(r.json()))
 
-
 config_json = {
-  "cmd":"settrigger",
-  "use":"N"
-
+  "cmd":"dsadf"
 }
 
 actuate("ae.11001100-AC_S1M_01_X", config_json)

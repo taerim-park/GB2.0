@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220801_V1.5'
+VERSION='20220819_V1.51'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -468,7 +468,7 @@ def do_user_command(aename, jcmd):
             for n in ae: msg+=f"{n} {ae[n]['config']['cmeasure']['measurestate']} {ae[n]['config']['cmeasure']['measureperiod']} {ae[n]['config']['cmeasure']['stateperiod']} {ae[n]['config']['ctrigger']['use']} {ae[n]['config']['ctrigger']['mode']} {ae[n]['config']['ctrigger']['bfsec']} {ae[n]['config']['ctrigger']['afsec']} {ae[n]['local']['realstart']}\n"
             slack(aename, msg)
     else:
-        warn_state(f'invalid cmd {jcmd}')
+        warn_state(f'invalid cmd - {cmd}')
         
 
 def got_callback(topic, msg):
@@ -689,11 +689,11 @@ def do_status():
     for aename in ae:
         state=ae[aename]['state']
         state['battery']=j['battery']
-        state['solar']=j['solar']
+        state['solarchargevolt']=j['solar']
         state['time']=j['time']
-        state['vdd']=j['vdd']
-        state['resetFlag']=j['resetFlag']
-        state['errcode']=j['errcode']
+        #state['vdd']=j['vdd']
+        #state['resetFlag']=j['resetFlag']
+        #state['errcode']=j['errcode']
 
 
 def do_capture():
@@ -1304,7 +1304,7 @@ def a_dinfo():
     r=''
     for aename in ae:
         #r+=f'battery: {ae[aename]['state']['battery']}'
-        solar =float(list({ae[aename]['state']['solar']})[0])*14.7/100
+        solar =float(list({ae[aename]['state']['solarchargevolt']})[0])*14.7/100
         battery =float(list({ae[aename]['state']['battery']})[0])*4.2/100
         r+=f'External battery: {solar:.2f} V <br>'
         r+=f'Internal battery: {battery:.2f} V <br>'
