@@ -1119,6 +1119,7 @@ def startup():
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
         if sensor_type(aename) == "CM": camera.take_picture_command(boardTime, aename)
         print(f"MAP {aename} --> using Sensor {acc_axis(aename)}")
+    os.system("sudo systemctl restart autossh") #초기 autossh start 커맨드
 
 
 # schedule measureperiod
