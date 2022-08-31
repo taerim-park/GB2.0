@@ -33,10 +33,12 @@ def actuate(aename, cmd):
     print(url, json.dumps(r.json()))
 
 config_json = {
-  "cmd":"dsadf"
+  "cmd":"reqstate"
 }
 
-actuate("ae.11001100-AC_S1M_01_X", config_json)
+actuate("ae.T0031b-TI_S1M_01_X", config_json)
+
+#actuate("ae.11001100-AC_S1M_01_X", config_json)
 
 # 이하로는 실제 현장에 설치된 테스트 센서의 AE 리스트 #
 ####################################################
