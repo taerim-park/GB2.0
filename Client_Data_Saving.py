@@ -1240,6 +1240,9 @@ def a_status():
     r+='<H3>Device Info</H3>'
     r+= f"<li><a href=/deviceInfo>Device Info</a>"
     r+='<hr>'
+    r+='<H2>인터넷 연결 확인</H2>'
+    r+= f"<li><a href=/connection style='text-decoration:none;'>인터넷 연결 확인</a>"
+    r+='<hr>'
     r+= f"Copyrightⓒ2022. Ino-on Inc. All Rights Reserved."
 
     return r
@@ -1259,6 +1262,8 @@ def a_data():
     aename = request.args.get('aename', '')
     if aename=='': 
         return 'please add aename'
+
+    r0=f"<H3>{aename}</H3>"
 
     mymemory = memory[aename]
     keys = sorted(mymemory['file'].keys())
@@ -1281,7 +1286,7 @@ def a_data():
     for aename in ae: 
         print(aename, sensor_type(aename))
         if sensor_type(aename) != "CM": r2+= f"<li><a href=/data?aename={aename}>{aename}</a>"
-    r= make_response(mygraph(zip(X,Y))+r2, 200)
+    r= make_response(r0+mygraph(zip(X,Y))+r2, 200)
     return r
 
 stat=[]
@@ -1323,11 +1328,27 @@ def a_camera():
     for aename in ae:
         if sensor_type(aename) == "CM":
             print(f" last_picture= {ae[aename]['local']['last_picture']}")
+            camera.take_picture_command(boardTime,aename)
             if ae[aename]['local']['last_picture'] == "":
                 return "no photo yet. wait for the first photo"
             else:
                 return send_file(ae[aename]['local']['last_picture'], mimetype='image/jpg')
     return "no camera device found"
+
+@app.route('/connection') #테스트 필요(220902)
+def a_connection():
+    r=''
+    addr = 'google.com'
+    cmdstring = F'ping -c1 {addr} 1>/dev/null'
+    res = os.system(cmdstring)
+    if res == 0:
+        pingmsg = "OK - 인터넷이 연결되어있습니다."
+    else:
+        pingmsg = "NG - 인터넷이 연결되어있지 않습니다."
+    r = F"{datetime.now().strftime('%H:%M:%S')} : {pingmsg}"
+
+    r = f"<html><head><meta http-equiv=refresh content=3></head><body>{r}</body>"
+    return r
 
 print(f"===== Begin at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 startup()
