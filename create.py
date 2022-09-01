@@ -48,7 +48,7 @@ def ci(aename, cnt, subcnt):
         else:
             if subcnt == "": x=''
             else: x=f'/{subcnt}'
-            if x=='/dmeasure':
+            if x=='/dmeasure' or '/dtrigger':
                 print(f'  created ci {aename}/{cnt}{x}/{r.json()["m2m:cin"]["rn"]} {json.dumps(r.json()["m2m:cin"]["con"], ensure_ascii=False)[:100]}...')
             else:
                 print(f'  created ci {aename}/{cnt}{x}/{r.json()["m2m:cin"]["rn"]} {json.dumps(r.json()["m2m:cin"]["con"], ensure_ascii=False)}')
