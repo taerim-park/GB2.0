@@ -1102,6 +1102,7 @@ def do_tick():
 
     once=True
     for aename in schedule:
+        if aename == "ping": continue
         if 'state' in schedule[aename] and schedule[aename]['state'] <= boardTime:
             if once:
                 once=False
@@ -1109,6 +1110,17 @@ def do_tick():
             ae[aename]['state']["abflag"]="N"         
             state.report(aename)
             schedule_stateperiod(aename)
+
+    if schedule["ping"] <= boardTime:
+        addr = 'google.com'
+        cmdstring = F'ping -c1 {addr} 1>/dev/null'
+        res = os.system(cmdstring)
+        if res == 0:
+            print("ICMP : responding well.")
+        else:
+            print("ICMP : not responding. do modem reset...")
+            myserial.modem_reset()
+        schedule_ping()
 
     global counter
     if counter>100000: counter=300
@@ -1189,6 +1201,15 @@ def schedule_stateperiod(aename1):
             schedule[aename]['state'] = boardTime+timedelta(minutes=cmeasure['stateperiod'])
             print(f'state schedule[{aename}] at {schedule[aename]["state"]}')
         '''
+# void schedule_ping()
+# 정시+2분마다 인터넷 상태를 체크하고, 인터넷 연결이 되지 않으면 모뎀 리셋 명령어를 보냅니다.
+def schedule_ping():
+    global schedule
+    t1 = boardTime.strftime('%Y-%m-%d %H:02:00')
+    t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 02분 정시성확보. # state나 
+    schedule["ping"] = t2 + timedelta(hours=1)
+    print(f'next internet check schedule at {schedule["ping"]} + 3600')
+
 
 #  첫번째 데이타 수신
 def schedule_first():
@@ -1200,6 +1221,7 @@ def schedule_first():
         schedule[aename]['measure'] = t2+ timedelta(minutes=10)
         print(f'next measure schedule[{aename}] at 10s {schedule[aename]["measure"]} +{cmeasure["measureperiod"]}')
         schedule_stateperiod(aename)    # 정상적 다음 일정
+        schedule_ping() # ping 스케줄링도 함께 시행
         '''
         schedule[aename]['measure']= boardTime
         schedule[aename]['state']= boardTime+timedelta(seconds=1)
@@ -1354,7 +1376,6 @@ conne = []
 # mqttmsg : mqtt 구독여부를 변수 mqttc를 통해 확인한 결과입니다.
 @app.route('/connection') 
 def a_connection():
-    conne = []
     addr = 'google.com'
     cmdstring = F'ping -c1 {addr} 1>/dev/null'
     res = os.system(cmdstring)
@@ -1375,12 +1396,12 @@ def a_connection():
     return r
 
 # /modem
-# 페이지에 접속하면 모뎀 리셋 명령어를 전송합니다. 리턴값에 따라 모뎀 리셋 성공 여부를 페이지에 표기합니다.
+# 페이지에 접속하면 모뎀 리셋 명령어를 전송합니다.
 @app.route('/modem')
 def a_modem():
     r=''
     myserial.modem_reset()
-    r=f"<li>모뎀을 리셋하였습니다."
+    r=f"모뎀을 리셋하였습니다. 몇 초 후 인터넷 상태를 재확인해주세요."
     r = f"<html><head></head><body>{r}</body>"
     return r
 
