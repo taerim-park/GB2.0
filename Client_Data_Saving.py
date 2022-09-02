@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220819_V1.51'
+VERSION='20220902_V1.52'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -503,12 +503,8 @@ def got_callback(topic, msg):
         #print(' ==> not for me', topic, msg[:20],'...')
         pass
 
-
-
-
-
 def connect_mqtt():
-    global mqttc
+    global mqttc, mqttc_failed_at
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             print(f"Connected to {broker} via MQTT")
@@ -519,6 +515,7 @@ def connect_mqtt():
 
     def on_disconnect(client, userdata, rc):
         print("Disconnected from MQTT server!")
+        mqttc_failed_at=datetime.now() # 연결이 해제된 경우 연결이 해제된 시점의 시간을 저장
 
     def on_message(client, _topic, _msg):
         topic=_msg.topic.split('/')
@@ -546,11 +543,30 @@ else:
     mqttc.loop_start()
     print("mqtt 연결에 성공했습니다.")
 
-        
+
+# void mqtt_retry()
+# mqtt 연결이 끊겨있으며, 마지막으로 mqtt 연결 재시도를 한지 10분 이상이 지났다면 mqtt 구독을 재시도합니다.
+
+def mqtt_retry():
+    global mqttc, mqttc_failed_at
+    if mqttc=="" and (datetime.now() - mqttc_failed_at).total_seconds()>600: # mqtt가 끊겨있으며 마지막 재연결 시도 이후 10분이 지났으면 재연결 시도
+        print("MQTT connection has failed before over 10 minutes. reconnecting...")
+        mqttc = connect_mqtt()
+        if mqttc=="":
+            print('***** failed to connect mqtt again. will try in 10 minutes')
+            mqttc_failed_at=datetime.now() # 또 실패했으므로 실패 시점의 시간을 저장
+        else:
+            print("success to connect mqtt again.")
+            mqttc.loop_start()
+
 # void mqtt_sending(aename, data)
 # mqtt 전송을 수행합니다. 단, mqtt 전송을 사용하지 않기로 한 센서라면, 수행하지 않습니다.
 # 센서에 따라 다른 TOPIC에 mqtt 메시지를 publish합니다.
-def mqtt_sending(aename, data):   
+def mqtt_sending(aename, data):
+    if mqttc=="":
+        print("no MQTT connection. skip mqtt data sending...")
+        return # mqtt 연결이 되어있지 않은 경우 스킵
+    ''' 
     global mqttc, mqttc_failed_at
     if mqttc=="" and (datetime.now() - mqttc_failed_at).total_seconds()>600:
         mqttc = connect_mqtt()
@@ -558,16 +574,9 @@ def mqtt_sending(aename, data):
         if mqttc=="":
             print('mqtt_sending: not conneccted. skip sending...')
             return
-
-    if mqttc=="":
-        print('***** failed to connect mqtt again. will try in 10 minutes')
-        mqttc_failed_at=datetime.now()
-        return
-    '''
-    else:
-        mqttc.loop_start()
-        print("mqtt 재연결에 성공했습니다.")
-    '''
+        else:
+            mqttc.loop_start()
+    '''  
     now = datetime.now()
     test_list = list()
     if type(data) == type(test_list):
@@ -1103,6 +1112,7 @@ def do_tick():
 
     global counter
     if counter>100000: counter=300
+    mqtt_retry()
 
 def startup():
     global ae
@@ -1197,7 +1207,6 @@ def schedule_first():
         #print(ae[aename])
         '''
 
-
 for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}
     trigger_activated[aename]=-1
@@ -1237,11 +1246,14 @@ def a_status():
     r+='<H2>카메라 영상  확인</H2>'
     r+= f"<li><a href=/camera style='text-decoration:none;'>Camera 확인</a>"
     r+='<hr>'
-    r+='<H3>Device Info</H3>'
-    r+= f"<li><a href=/deviceInfo>Device Info</a>"
-    r+='<hr>'
     r+='<H2>인터넷 연결 확인</H2>'
     r+= f"<li><a href=/connection style='text-decoration:none;'>인터넷 연결 확인</a>"
+    r+='<hr>'
+    r+='<H3>모뎀 리셋</H3>'
+    r+= f"<li><a href=/modem style='text-decoration:none;'>모뎀 리셋</a>"
+    r+='<hr>'
+    r+='<H3>Device Info</H3>'
+    r+= f"<li><a href=/deviceInfo>Device Info</a>"
     r+='<hr>'
     r+= f"Copyrightⓒ2022. Ino-on Inc. All Rights Reserved."
 
@@ -1335,9 +1347,14 @@ def a_camera():
                 return send_file(ae[aename]['local']['last_picture'], mimetype='image/jpg')
     return "no camera device found"
 
-@app.route('/connection') #테스트 필요(220902)
+conne = []
+# /connection
+# 인터넷 연결 상태를 확인합니다. 페이지는 1초마다 갱신됩니다.
+# pingmsg : ICMP를 이용해 인터넷이 연결되어있는지 확인한 결과입니다. 
+# mqttmsg : mqtt 구독여부를 변수 mqttc를 통해 확인한 결과입니다.
+@app.route('/connection') 
 def a_connection():
-    r=''
+    conne = []
     addr = 'google.com'
     cmdstring = F'ping -c1 {addr} 1>/dev/null'
     res = os.system(cmdstring)
@@ -1345,10 +1362,28 @@ def a_connection():
         pingmsg = "OK - 인터넷이 연결되어있습니다."
     else:
         pingmsg = "NG - 인터넷이 연결되어있지 않습니다."
-    r = F"{datetime.now().strftime('%H:%M:%S')} : {pingmsg}"
-
-    r = f"<html><head><meta http-equiv=refresh content=3></head><body>{r}</body>"
+    if mqttc=="":
+        mqttmsg = "MQTT 중지 상태."
+    else:
+        mqttmsg = "MQTT 정상 작동 중."
+    conne.insert(0, F"{datetime.now().strftime('%H:%M:%S')} : {pingmsg} {mqttmsg}")
+    if len(conne)>10: del conne[10]
+    r=''
+    for msg in conne:
+        r+=f"<li>{msg}"
+    r = f"<html><head><meta http-equiv=refresh content=1></head><body>{r}</body>"
     return r
+
+# /modem
+# 페이지에 접속하면 모뎀 리셋 명령어를 전송합니다. 리턴값에 따라 모뎀 리셋 성공 여부를 페이지에 표기합니다.
+@app.route('/modem')
+def a_modem():
+    r=''
+    myserial.modem_reset()
+    r=f"<li>모뎀을 리셋하였습니다."
+    r = f"<html><head></head><body>{r}</body>"
+    return r
+
 
 print(f"===== Begin at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 startup()

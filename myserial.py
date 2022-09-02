@@ -14,3 +14,8 @@ def read():
         if line.startswith("*SKT*LEVEL"): 
             return line
     ser.close()
+
+def modem_reset():
+    ser = serial.Serial('/dev/ttyACM0', timeout=2)
+    ser.write(b'at*set*reset\r\n')
+    ser.close()
