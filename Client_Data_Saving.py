@@ -21,7 +21,6 @@ import signal
 from datetime import datetime, timedelta
 from time import process_time
 from paho.mqtt import client as mqtt
-from events import Events
 from RepeatedTimer import RepeatedTimer
 from graph import mygraph
 import myserial
