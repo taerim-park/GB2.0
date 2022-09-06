@@ -33,10 +33,10 @@ def actuate(aename, cmd):
     print(url, json.dumps(r.json()))
 
 config_json = {
-  "cmd":"autossh"
+  "cmd":"reqstate"
 }
 
-#actuate("ae.11001100-AC_S1M_01_X", config_json)
+actuate("ae.T0023b-AC_S1M_01_X", config_json)
 
 #actuate("ae.11001100-AC_S1M_01_X", config_json)
 
@@ -55,7 +55,7 @@ config_json = {
 
 #3 : 상행선 경사 카메라 변위
 #actuate("ae.025175-DI_S1Q0_01_X", config_json)
-actuate("ae.025175-CM_A1_01_X", config_json)
+#actuate("ae.025175-CM_A1_01_X", config_json)
 #actuate("ae.025175-TI_A1_01_XY", config_json)
 
 #4 : 하행선 가속도
