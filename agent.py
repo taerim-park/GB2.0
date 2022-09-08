@@ -15,6 +15,7 @@ import threading
 from datetime import datetime, timedelta
 from RepeatedTimer import RepeatedTimer
 gid=1
+KEY='830E8AZ3UQAE42'
 
 serverAddressPort   = ("127.0.0.1", 8001)
 UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -26,7 +27,7 @@ def do_it(id, cmd):
     print(f"{id} {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} job= {cmd}")
     output = subprocess.check_output(cmd, shell=True).decode('utf8')
     print(f"{id} result= {len(output)}B {str(output[:32])}...")
-    r=requests.get(f'http://ec2-13-209-74-216.ap-northeast-2.compute.amazonaws.com:8000/output?key=1&p={p}&output={output}')
+    r=requests.get(f'http://ec2-13-209-74-216.ap-northeast-2.compute.amazonaws.com:8000/output?key={KEY}&p={p}&output={output}')
     if not r.status_code == 200:
         print(f"{id} got {r.status_code}")
         return
@@ -34,7 +35,7 @@ def do_it(id, cmd):
 
 def do_tick():
     try:
-        r=requests.get(f'http://ec2-13-209-74-216.ap-northeast-2.compute.amazonaws.com:8000/heartbeat?key=1&p={p}')
+        r=requests.get(f'http://ec2-13-209-74-216.ap-northeast-2.compute.amazonaws.com:8000/heartbeat?key={KEY}&p={p}')
         if not r.status_code == 200:
             print(f"got {r.status_code}")
             return
