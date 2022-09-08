@@ -76,8 +76,22 @@ dis_channel = "ch4" # ch4, ch5중 택1
 아래 펑션으로 대체
 '''
 
+def is_inverted(aename):
+    if 'axis' in ae[aename]['local']:
+        if "-" in ae[aename]['local']['axis']: return True
+        else: return False
+    else: return False
+
+def invertC(aename):
+    if 'axis' in ae[aename]['local']:
+        if "-" in ae[aename]['local']['axis']: return -1
+        else: return 1
+    else: return 1   
+
 def acc_axis(aename):
-    if 'axis' in ae[aename]['local']: return ae[aename]['local']['axis']
+    if 'axis' in ae[aename]['local']:
+        return ae[aename]['local']['axis'].replace("-", "") # 마이너스를 제거하고 return
+    #설정된 축이 없다면 AE명에서 그대로 따온다
     return aename[-1].lower()
 
 def deg_axis(aename):
@@ -87,8 +101,8 @@ def str_axis(aename):
     return acc_axis(aename)
 
 def dis_channel(aename):
-    if aename[-1]=='X': return 'ch4'
-    elif aename[-1]=='Y': return 'ch5'
+    if acc_axis(aename)=='x': return 'ch4'
+    elif acc_axis(aename)=='y': return 'ch5'
     else:
         print(f'Format error in aename {aename}')
         print(f'DI type sensor supports X or Y only')
@@ -828,20 +842,25 @@ def do_capture():
                 trigger_list = j["AC"]
                 trigger_data = "unknown"
                 for ac in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
-                    if ctrigger['mode'] == 1 and ac[acc_axis(aename)] > ctrigger['st1high']:
-                        trigger_data = ac[acc_axis(aename)]
+                    acctrig_value = ac[acc_axis(aename)]*invertC(aename)
+                    if acctrig_value > ctrigger['st1high']: #220908 : 트리거는 무조건 상한으로만 동작하도록 변경
+                        trigger_data = acctrig_value
+                    '''
+                    if ctrigger['mode'] == 1 and acctrig_value > ctrigger['st1high']:
+                        trigger_data = acctrig_value
                         break
-                    elif ctrigger['mode'] == 2 and ac[acc_axis(aename)] < ctrigger['st1low']:
-                        trigger_data = ac[acc_axis(aename)]
+                    elif ctrigger['mode'] == 2 and acctrig_value < ctrigger['st1low']:
+                        trigger_data = acctrig_value
                         break
                     elif ctrigger['mode'] == 3:
-                        if ac[acc_axis(aename)] > ctrigger['st1high'] or ac[acc_axis(aename)] < ctrigger['st1low']:
-                            trigger_data = ac[acc_axis(aename)]
+                        if acctrig_value > ctrigger['st1high'] or acctrig_value < ctrigger['st1low']:
+                            trigger_data = acctrig_value
                             break
                     elif ctrigger['mode'] == 4:
-                        if ac[acc_axis(aename)] < ctrigger['st1high'] and ac[acc_axis(aename)] > ctrigger['st1low']:
-                            trigger_data = ac[acc_axis(aename)]
+                        if acctrig_value < ctrigger['st1high'] and acctrig_value > ctrigger['st1low']:
+                            trigger_data = acctrig_value
                             break
+                    '''
     
                 if trigger_data == "unknown":
                     print(f" not-for-me-trig-condition-skip")
@@ -860,21 +879,21 @@ def do_capture():
                 trigger_list = j["DS"]
                 trigger_data = "unknown"
                 for st in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
-                    if ctrigger['mode'] == 1 and st[str_axis(aename)] > ctrigger['st1high']:
-                        trigger_data = st[str_axis(aename)]
+                    strtrig_value = st[str_axis(aename)]*invertC(aename)
+                    if ctrigger['mode'] == 1 and strtrig_value > ctrigger['st1high']:
+                        trigger_data = strtrig_value
                         break
-                    elif ctrigger['mode'] == 2 and st[str_axis(aename)] < ctrigger['st1low']:
-                        trigger_data = st[str_axis(aename)]
+                    elif ctrigger['mode'] == 2 and strtrig_value < ctrigger['st1low']:
+                        trigger_data = strtrig_value
                         break
                     elif ctrigger['mode'] == 3:
-                        if st[str_axis(aename)] > ctrigger['st1high'] and st[str_axis(aename)]< ctrigger['st1low']:
-                            trigger_data = st[str_axis(aename)]
+                        if strtrig_value > ctrigger['st1high'] and strtrig_value< ctrigger['st1low']:
+                            trigger_data = strtrig_value
                             break
                     elif ctrigger['mode'] == 4:
-                        if st[str_axis(aename)] < ctrigger['st1high'] and st[str_axis(aename)] > ctrigger['st1low']:
-                            trigger_data = st[str_axis(aename)]
+                        if strtrig_value < ctrigger['st1high'] and strtrig_value > ctrigger['st1low']:
+                            trigger_data = strtrig_value
                             break
-    
                 
                 if trigger_data == "unknown":
                     print(f" not-for-me-trig-condition-skip")
@@ -900,9 +919,9 @@ def do_capture():
                 # 그리고 주석처리하신 건 좋았으나 이 때문에 offset기능 자체가 없어져버렸습니다...ㅠㅠ 일단 주석 다시 살립니다.
                 print(f"정적데이타offset연산  offset= {cmeasure['offset']}")
                 
-                if stype == "DI": data = j["DI"][dis_channel(aename)]+cmeasure['offset']
-                elif stype == "TP": data = j["TP"]+cmeasure['offset']
-                elif stype == "TI": data = j["TI"][deg_axis(aename)]+cmeasure['offset'] # offset이 있는 경우, 합쳐주어야한다
+                if stype == "DI":data = (j["DI"][dis_channel(aename)]+cmeasure['offset'])*invertC(aename)
+                elif stype == "TP": data = (j["TP"]+cmeasure['offset'])*invertC(aename)
+                elif stype == "TI": data = (j["TI"][deg_axis(aename)]+cmeasure['offset'])*invertC(aename) # offset이 있는 경우, 합쳐주어야한다
                 else: data = "nope"
                 #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
                 dtrigger['val'] = data
@@ -947,7 +966,6 @@ def do_capture():
             "DS":0
         }
 
-
         if stype == 'TP' and 'offset' in cmeasure: offset_dict["TP"] = cmeasure['offset']
         elif stype == 'DI' and 'offset' in cmeasure: offset_dict["DI"] = cmeasure['offset']
         elif stype == "AC" and 'offset' in cmeasure: offset_dict["AC"] = cmeasure['offset']
@@ -956,10 +974,14 @@ def do_capture():
 
         if stype=='AC':
             acc_list = list()
-            for i in range(len(j["AC"])): acc_list.append(round(j["AC"][i][acc_axis(aename)] + offset_dict["AC"],2))
+            for i in range(len(j["AC"])): 
+                acc_value = round(j["AC"][i][acc_axis(aename)] + offset_dict["AC"],2)*invertC(aename)
+                acc_list.append(acc_value)
         elif stype=='DS':
             str_list = list()
-            for i in range(len(j["DS"])): str_list.append(round(j["DS"][i][str_axis(aename)] + offset_dict["DS"],2)) #offset 기능 구현 완료
+            for i in range(len(j["DS"])):
+                str_value = round(j["DS"][i][str_axis(aename)] + offset_dict["DS"],2)*invertC(aename)
+                str_list.append(str_value)
         
         #print(F"acc : {acc_list}")
         #samplerate에 따라 파일에 저장되는 data 조정
@@ -1002,9 +1024,9 @@ def do_capture():
 
         # 센서의 특성을 고려해 각 센서 별로 센서 data를 담은 dict 생성
         raw_json={}
-        if stype=='TI': raw_json[aename] = jsonCreate('TI', boardTime, j["TI"][deg_axis(aename)]+ offset_dict["TI"])
+        if stype=='TI': raw_json[aename] = jsonCreate('TI', boardTime, (j["TI"][deg_axis(aename)]+ offset_dict["TI"])*invertC(aename))
         elif stype=='TP': raw_json[aename] = jsonCreate('TP', boardTime, j["TP"] + offset_dict["TP"])
-        elif stype=='DI':raw_json[aename] = jsonCreate('DI', boardTime, j["DI"][dis_channel(aename)] + offset_dict["DI"])
+        elif stype=='DI':raw_json[aename] = jsonCreate('DI', boardTime, (j["DI"][dis_channel(aename)] + offset_dict["DI"])*invertC(aename))
         elif stype=='AC':raw_json[aename] = jsonCreate('AC', boardTime, acc_list)
         elif stype=='DS':raw_json[aename] = jsonCreate('DS', boardTime, str_list)
 
@@ -1089,6 +1111,7 @@ def do_capture():
             create.ci(aename, 'data', 'dmeasure')
 
         t1_msg += f' - doneSaving - {elapsed(t1_start):.1f}s' 
+
     if elapsed(t0_start)>0.7:
         print(f'do_capture elapsed= {elapsed(t0_start):.1f}s {t1_msg}')
 
