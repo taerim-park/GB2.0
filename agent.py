@@ -17,7 +17,8 @@ from RepeatedTimer import RepeatedTimer
 gid=1
 KEY=''
 
-if KEY=='': with open("key.txt") as f: KEY=f.read()
+if KEY=='':
+    with open("key.txt") as f: KEY=f.read()
 
 serverAddressPort   = ("127.0.0.1", 8001)
 UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)

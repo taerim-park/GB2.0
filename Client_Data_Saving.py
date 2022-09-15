@@ -947,7 +947,6 @@ def do_capture():
     
     # end of trigger            
 
-
     for aename in ae: 
         ctrigger=ae[aename]['config']['ctrigger']
         cmeasure=ae[aename]['config']['cmeasure']
