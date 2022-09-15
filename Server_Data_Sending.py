@@ -42,12 +42,12 @@ GPIO.output(5,  False)
 
 
 
-'''
 def callback_i1(channel):
-    GPIO.output(5,  False)
+    os.system("sudo shutdown now")
+    #GPIO.output(5,  False)
 
 GPIO.add_event_detect(23, GPIO.FALLING, callback=callback_i1)
-'''
+
 app= Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -111,7 +111,8 @@ def status_conversion(solar, battery, vdd):
     if solar >65000 :
         solar = 0
     else :
-        solar   = (solar*0.003809)/14.7*100        # linear voltage %, not capacity %
+        #solar   = (solar*0.003809)/14.7*100        # linear voltage %, not capacity %
+        solar   = (solar*0.003809)                  # linear voltage
 
     battery = (battery*0.001222)/4.2* 100      # linear voltage %, not capacity %
     vdd     = (vdd*0.000879)/ 3.3 * 100        # % 
