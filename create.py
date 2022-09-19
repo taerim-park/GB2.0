@@ -69,7 +69,7 @@ def allci(aei, all):
                 #print(f'allci {aei}/{cnti}/{subcnti}')
                 if not ci(aei, cnti, subcnti):
                     print(f'***** skip creating {aei} {cnti} {subcnti}')
-                    return
+                    continue
 
 if __name__== "__main__":
     doit()
