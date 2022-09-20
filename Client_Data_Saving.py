@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220902_V1.52'
+VERSION='20220920_V1.53'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -38,6 +38,7 @@ import make_oneM2M_resource
 import savedData
 import state
 import camera
+import ssh_patch
 
 from conf import csename, memory, ae, slack, port, host as broker, boardTime, supported_sensors, root, TOPIC_list
 dev_busy=0
@@ -1149,7 +1150,8 @@ def do_tick():
 
 def startup():
     global ae
-
+    ssh_need = ssh_patch.service_file_change()
+    if ssh_need:ssh_patch.ssh_init()
     #this need once for one board
     do_config()
     print('create ci at boot')
@@ -1227,7 +1229,7 @@ def schedule_stateperiod(aename1):
 def schedule_ping():
     global schedule
     t1 = boardTime.strftime('%Y-%m-%d %H:02:00')
-    t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 02분 정시성확보. # state나 
+    t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 02분 정시성확보. state 전송이나 주기적 전송에 영향받지 않도록 함
     schedule["ping"] = t2 + timedelta(hours=1)
     print(f'next internet check schedule at {schedule["ping"]} + 3600')
 
