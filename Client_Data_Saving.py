@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220920_V1.53'
+VERSION='20220921_V1.54'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -84,6 +84,8 @@ def is_inverted(aename):
     else: return False
 
 def invertC(aename):
+    if sensor_type(aename) not in {"AC", "TI"}:
+        return 1 # DS, DI, TP는 축 방향에 따라 양음수가 바뀌지 않는다
     if 'axis' in ae[aename]['local']:
         if "-" in ae[aename]['local']['axis']: return -1
         else: return 1
@@ -745,6 +747,7 @@ def do_capture():
     j= r.json()
     #print(f"got j={j}")
 
+    
     global dev_busy
     if j['Status'].startswith('False'):
         dev_busy +=1
@@ -776,6 +779,28 @@ def do_capture():
     conf.py 에 설정된 aename 각각 루프를 돌면서 필요한 값을 처리하는 형식.
     '''
 
+    # 캡쳐해온 data를 captured_data라는 dict에 따로 가공하여 저장한다.
+    captured_data = {}
+    for aename in ae:
+        capture_offset = ae[aename]['config']['cmeasure']['offset']
+        capture_invert = invertC(aename)
+        stype = sensor_type(aename)
+        #이하 부분에서 offset, 자릿수 변경, 부호 변경, 유효숫자 관리 모두 시행함
+        if stype == "AC" :
+            captured_data[aename] = list()
+            for d in j[stype]:
+                captured_data[aename].append(round((d[acc_axis(aename)] + capture_offset) * capture_invert * 0.001, 5))# AC 단위를 mG가 아닌 G로 변경한 후, 소숫점 5자리까지 표기
+        elif stype == "DS":
+            captured_data[aename] = list()
+            for d in j[stype]:
+                captured_data[aename].append(round(d[str_axis(aename)] + capture_offset, 2))
+        elif stype == "DI":
+            captured_data[aename] = j[stype][dis_channel(aename)] + capture_offset
+        elif stype == "TP":
+            captured_data[aename] = j[stype] + capture_offset
+        elif stype == "TI":
+            captured_data[aename] = round((j[stype][deg_axis(aename)] + capture_offset) * capture_invert , 4)
+
     # start of trigger
     for aename in ae: 
         ctrigger=ae[aename]['config']['ctrigger']
@@ -790,7 +815,7 @@ def do_capture():
         # 카메라('CM')외 센서들만 해당
         if stype in {'AC','DS','DI','TP','TI'}:  
             #print(f"aename= {aename} stype= {stype} use= {ctrigger['use']}")
-    
+
             def print_trigger(trig):
                 msg =""
                 for x in trig: 
@@ -840,12 +865,11 @@ def do_capture():
     
             # 새로운 trigger 처리
             if stype == "AC": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
-                trigger_list = j["AC"]
+                trigger_list = captured_data[aename]
                 trigger_data = "unknown"
                 for ac in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
-                    acctrig_value = ac[acc_axis(aename)]*invertC(aename)
-                    if acctrig_value > ctrigger['st1high']: #220908 : 트리거는 무조건 상한으로만 동작하도록 변경
-                        trigger_data = acctrig_value
+                    if ac > ctrigger['st1high']: #220908 : 트리거는 무조건 상한으로만 동작하도록 변경
+                        trigger_data = ac
                     '''
                     if ctrigger['mode'] == 1 and acctrig_value > ctrigger['st1high']:
                         trigger_data = acctrig_value
@@ -864,7 +888,7 @@ def do_capture():
                     '''
     
                 if trigger_data == "unknown":
-                    print(f" not-for-me-trig-condition-skip")
+                    #print(f" not-for-me-trig-condition-skip")
                     continue
                     
                 dtrigger['val'] = trigger_data
@@ -877,27 +901,26 @@ def do_capture():
     
             
             elif stype == "DS": # 동적 데이터의 경우, 트리거 전초와 후초를 고려해 전송 시행
-                trigger_list = j["DS"]
+                trigger_list = captured_data[aename]
                 trigger_data = "unknown"
                 for st in trigger_list: # 트리거 조건을 충족시키는 가장 첫번째 값을 val에 저장하기 위해 일치하는 값을 찾으면 break
-                    strtrig_value = st[str_axis(aename)]*invertC(aename)
-                    if ctrigger['mode'] == 1 and strtrig_value > ctrigger['st1high']:
-                        trigger_data = strtrig_value
+                    if ctrigger['mode'] == 1 and st > ctrigger['st1high']:
+                        trigger_data = st
                         break
-                    elif ctrigger['mode'] == 2 and strtrig_value < ctrigger['st1low']:
-                        trigger_data = strtrig_value
+                    elif ctrigger['mode'] == 2 and st < ctrigger['st1low']:
+                        trigger_data = st
                         break
                     elif ctrigger['mode'] == 3:
-                        if strtrig_value > ctrigger['st1high'] and strtrig_value< ctrigger['st1low']:
-                            trigger_data = strtrig_value
+                        if st > ctrigger['st1high'] and st < ctrigger['st1low']:
+                            trigger_data = st
                             break
                     elif ctrigger['mode'] == 4:
-                        if strtrig_value < ctrigger['st1high'] and strtrig_value > ctrigger['st1low']:
-                            trigger_data = strtrig_value
+                        if st < ctrigger['st1high'] and st > ctrigger['st1low']:
+                            trigger_data = st
                             break
                 
                 if trigger_data == "unknown":
-                    print(f" not-for-me-trig-condition-skip")
+                    #print(f" not-for-me-trig-condition-skip")
                     continue
                     
                 dtrigger['val'] = trigger_data
@@ -908,24 +931,17 @@ def do_capture():
                 else: 
                     trigger_activated[aename]=60  # value error, 60 instead
     
-            else:
+            else: # stype이 DI, TP, TI인 경우
                 # 정적 데이터의 경우, 트리거 발생 당시의 데이터를 전송한다
                 print(f"got non-AC trigger {aename}  bfsec= {ctrigger['bfsec']}  afsec= {ctrigger['afsec']}")
                 dtrigger['start']=boardTime.strftime("%Y-%m-%d %H:%M:%S")
                 dtrigger['count'] = 1
                 
-                # offset 은 서버에서 계산하도록 합니다. 현재는 클라이언트 2군데에서추가로 계산
-                # 그런데 아래부분이  data를 만들기 때문에 삭제하면 에러가 발생.  그래서 data만 만들어지도록 둡니다.
-                # 0722 : offset 계산방식이 단순무식했음은 알겠습니다만, 서버는 conf파일을 로딩하지 않는 프로그램이기 때문에 offset을 서버에서 더하는 건 서버의 역할에 벗어나는 일이 아닐까 싶습니다.
-                # 그리고 주석처리하신 건 좋았으나 이 때문에 offset기능 자체가 없어져버렸습니다...ㅠㅠ 일단 주석 다시 살립니다.
                 print(f"정적데이타offset연산  offset= {cmeasure['offset']}")
-                
-                if stype == "DI":data = (j["DI"][dis_channel(aename)]+cmeasure['offset'])*invertC(aename)
-                elif stype == "TP": data = (j["TP"]+cmeasure['offset'])*invertC(aename)
-                elif stype == "TI": data = (j["TI"][deg_axis(aename)]+cmeasure['offset'])*invertC(aename) # offset이 있는 경우, 합쳐주어야한다
-                else: data = "nope"
+    
+                dtrigger['val'] = captured_data[aename] 
+
                 #정말로 val값이 trigger를 만족시키는지 check해야함. 추후 추가.
-                dtrigger['val'] = data
     
             dtrigger['time']=boardTime.strftime("%Y-%m-%d %H:%M:%S") # 트리거 신호가 발생한 당시의 시각
             dtrigger['mode']=ctrigger['mode']
@@ -948,6 +964,7 @@ def do_capture():
     
     # end of trigger            
 
+    # data를 메모리에 저장하는 프로세스 시작
     for aename in ae: 
         ctrigger=ae[aename]['config']['ctrigger']
         cmeasure=ae[aename]['config']['cmeasure']
@@ -958,6 +975,7 @@ def do_capture():
         # skip if not measuring
         if cmeasure['measurestate'] != 'measuring': continue
 
+        '''
         offset_dict = {
             "AC":0,
             "DI":0,
@@ -982,13 +1000,15 @@ def do_capture():
             for i in range(len(j["DS"])):
                 str_value = round(j["DS"][i][str_axis(aename)] + offset_dict["DS"],2)*invertC(aename)
                 str_list.append(str_value)
+
+        '''
         
-        #print(F"acc : {acc_list}")
         #samplerate에 따라 파일에 저장되는 data 조정
         #현재 가속도 센서와 변형률 센서에 적용중
-    
-        # 동적 데이터의 경우, samplerate가 100이 아닌 경우에 대처한다
         if stype=="AC" or stype=="DS":
+            round_num = {} # 가공할 자릿수를 뽑아낼 dict
+            round_num["AC"] = 5
+            round_num["DS"] = 2
             ae_samplerate = float(cmeasure["samplerate"])
             if ae_samplerate != 100:
                 if 100%ae_samplerate != 0:
@@ -999,36 +1019,24 @@ def do_capture():
                 merged_value = 0
                 merge_count = 0
                 sample_number = 100//ae_samplerate
-                if stype=="AC":
-                    new_acc_list = list()
-                    for i in range(len(acc_list)):
-                        merged_value += acc_list[i]
-                        merge_count += 1
-                        if merge_count == sample_number:
-                            new_acc_list.append(round(merged_value/sample_number, 2))
-                            merge_count = 0
-                            merged_value = 0
-                    acc_list = new_acc_list
-                else:
-                    new_str_list = list()
-                    for i in range(len(str_list)):
-                        merged_value += str_list[i]
-                        merge_count += 1
-                        if merge_count == sample_number:
-                            new_str_list.append(round(merged_value/sample_number, 2))
-                            merge_count = 0
-                            merged_value = 0
-                    str_list = new_str_list
-            #print("samplerate calculation end")
-            #print(acc_list)
+                new_list = list()
+                for i in range(len(captured_data[aename])):
+                    merged_value += captured_data[aename][i]
+                    merge_count += 1
+                    if merge_count == sample_number:
+                        new_list.append(round(merged_value/sample_number, round_num[stype]))
+                        merge_count = 0
+                        merged_value = 0
+                captured_data[aename] = new_list
 
         # 센서의 특성을 고려해 각 센서 별로 센서 data를 담은 dict 생성
         raw_json={}
-        if stype=='TI': raw_json[aename] = jsonCreate('TI', boardTime, (j["TI"][deg_axis(aename)]+ offset_dict["TI"])*invertC(aename))
-        elif stype=='TP': raw_json[aename] = jsonCreate('TP', boardTime, j["TP"] + offset_dict["TP"])
-        elif stype=='DI':raw_json[aename] = jsonCreate('DI', boardTime, (j["DI"][dis_channel(aename)] + offset_dict["DI"])*invertC(aename))
-        elif stype=='AC':raw_json[aename] = jsonCreate('AC', boardTime, acc_list)
-        elif stype=='DS':raw_json[aename] = jsonCreate('DS', boardTime, str_list)
+
+        if stype=='TI': raw_json[aename] = jsonCreate('TI', boardTime, captured_data[aename])
+        elif stype=='TP': raw_json[aename] = jsonCreate('TP', boardTime, captured_data[aename])
+        elif stype=='DI':raw_json[aename] = jsonCreate('DI', boardTime, captured_data[aename])
+        elif stype=='AC':raw_json[aename] = jsonCreate('AC', boardTime, captured_data[aename])
+        elif stype=='DS':raw_json[aename] = jsonCreate('DS', boardTime, captured_data[aename])
 
         # boardTime이 정시가딘것이  확인되면 먼저 데이타 전송  처리작업을 한다.  10분의 기간이 10:00 ~ 19:99 이기때문
         if gotBoardTime:
