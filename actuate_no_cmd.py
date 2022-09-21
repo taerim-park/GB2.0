@@ -33,10 +33,10 @@ def actuate(aename, cmd):
     print(url, json.dumps(r.json()))
 
 config_json = {
-  "cmd":"reqstate"
+    "cmd":"realstart"
 }
 
-actuate("ae.T0096b-AC_S1M_01_X", config_json)
+actuate("ae.T0138b-TI_S1M_01_X", config_json)
 
 #actuate("ae.11001100-AC_S1M_01_X", config_json)
 

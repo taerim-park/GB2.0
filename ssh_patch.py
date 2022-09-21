@@ -27,10 +27,13 @@ def ssh_init():
     try:
         child.expect("fingerprint", timeout = 2)
         child.sendline("yes")
+        print("connect to ubuntu@bridge.ino-on.net...")
         child.expect("pi@localhost")
         child.sendline("exit")
     except pexpect.TIMEOUT:
         print("known host : bridge.ino-on.net")
+        child.expect("pi@localhost")
+        child.sendline("exit")
 
     #child.interact()
     #os.system("sudo systemctl restart autossh")
