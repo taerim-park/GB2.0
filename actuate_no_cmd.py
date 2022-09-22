@@ -36,7 +36,7 @@ config_json = {
     "cmd":"reqstate"
 }
 
-actuate("ae.T0101b-AC_S1M_01_X", config_json)
+actuate("ae.T0103b-AC_S1M_01_X", config_json)
 
 #actuate("ae.11001100-AC_S1M_01_X", config_json)
 

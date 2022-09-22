@@ -1,9 +1,15 @@
+agent.py
 Client_Data_Saving.py
 create.py
+camera.py
 default.py
+graph.py
+graph.html
+myserial.py
 make_oneM2M_resource.py
 RepeatedTimer.py
 savedData.py
 Server_Data_Sending.py
+ssh_patch.py
 state.py
 versionup.py
