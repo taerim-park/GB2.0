@@ -469,7 +469,12 @@ def do_user_command(aename, jcmd):
 
     if cmd in 'gitupdate':
         print("update software via Github")
-        os.system("sh gitUpdate.sh")
+        os.system("rm -rf ../GB2.0")
+        os.system("mkdir ../GB2.0")
+        os.system("git clone https://github.com/ekyuho/GB2.0.git ../GB2.0")
+        os.system("cp ../GB2.0/COPY.sh .")
+        os.system("sh COPY.sh")
+        os.system("pm2 restart all")
         return
         
     if cmd == 'inoon':
