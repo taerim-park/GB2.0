@@ -286,6 +286,7 @@ def do_user_command(aename, jcmd):
         return 
 
     if cmd in {'fwupdate'}:
+        # 형식 검사 코드 필요할듯
         url= f'{jcmd["protocol"]}://{jcmd["ip"]}:{jcmd["port"]}{jcmd["path"]}'
         versionup.versionup(aename, url)
         #will restart too
@@ -466,6 +467,11 @@ def do_user_command(aename, jcmd):
         os.system("sudo systemctl restart autossh")
         return
 
+    if cmd in 'gitupdate':
+        print("update software via Github")
+        os.system("sh gitUpdate.sh")
+        return
+        
     if cmd == 'inoon':
         cmd2=jcmd['cmd2']
         if cmd2=="ae": 

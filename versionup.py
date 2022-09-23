@@ -43,6 +43,7 @@ def versionup(aename, url):
             return
     except:
         print('***** update url failed')
+        warn_state("fwupdate has failed : no reply")
         return 
 
     os.makedirs(com)
