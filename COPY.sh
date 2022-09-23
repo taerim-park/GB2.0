@@ -14,3 +14,5 @@ cp ../GB2.0/graph.html graph.html
 cp ../GB2.0/myserial.py myserial.py
 cp ../GB2.0/default.py default.py
 cp ../GB2.0/ssh_patch.py ssh_patch.py
+cp ../GB2.0/FILES FILES
+cp ../GB2.0/gitUpdate.sh gitUpdate.sh

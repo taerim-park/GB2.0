@@ -33,10 +33,18 @@ def actuate(aename, cmd):
     print(url, json.dumps(r.json()))
 
 config_json = {
-    "cmd":"reqstate"
+    "cmd":"gitUpdate"
 }
+'''
+    "cmd":"fwupdate",
+    "protocol":"HTTP",
+    "ip":host,
+    "port":2883,
+    "path":"/fwupdate/20220922_133458.BIN"
 
-actuate("ae.T0103b-AC_S1M_01_X", config_json)
+'''
+
+actuate("ae.T0138b-AC_S1M_01_X", config_json)
 
 #actuate("ae.11001100-AC_S1M_01_X", config_json)
 

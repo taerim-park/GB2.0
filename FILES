@@ -13,3 +13,4 @@ Server_Data_Sending.py
 ssh_patch.py
 state.py
 versionup.py
+gitUpdate.sh
