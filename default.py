@@ -110,7 +110,7 @@ def make_ae(aename, csename, install, config_connect):
         ae[aename]['data']['dtrigger'].update(data_dtrigger)
         ae[aename]['data']['fft'].update(data_fft)
         ae[aename]['data']['dmeasure'].update(data_dmeasure)
-    ae[aename]['local']={'printtick':'N', 'realstart':'N', 'name':aename, 'upTime':"", 'serial': getserial(), 'mqtt':True}
+    ae[aename]['local']={'printtick':'N', 'realstart':'N', 'name':aename, 'upTime':"", 'serial': getserial(), 'mqtt':True, 'teststart':'N'}
     TOPIC_list[aename]=F'/{csename}/{aename}/realtime'
 
 def getserial():

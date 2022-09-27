@@ -33,18 +33,20 @@ def actuate(aename, cmd):
     print(url, json.dumps(r.json()))
 
 config_json = {
-    "cmd":"reqstate"
+    "cmd":"fwupdate",
+    "protocol":"HTTP",
+    "ip":host,
+    "port":2883,
+    "path":"/fwupdate/20220923_105943.BIN"
 }
 '''
     "cmd":"fwupdate",
     "protocol":"HTTP",
     "ip":host,
     "port":2883,
-    "path":"/fwupdate/20220922_133458.BIN"
+    "path":"/fwupdate/20220923_105943.BIN"
 
 '''
-
-actuate("ae.T0115b-AC_S1M_01_X", config_json)
 
 #actuate("ae.11001100-AC_S1M_01_X", config_json)
 
@@ -54,23 +56,24 @@ actuate("ae.T0115b-AC_S1M_01_X", config_json)
 ## 테스트 센서 1 : 태리IC(상)/(하) ##
 
 #1 : 상행선 가속도
-#actuate("ae.025175-AC_S1Q2_01_Z", config_json)
+actuate("ae.025175-AC_S1Q2_01_Z", config_json)
 
 #2 : 상행선 가속도 변형률 온도
-#actuate("ae.025175-AC_S1Q2_02_Z", config_json)
+actuate("ae.025175-AC_S1Q2_02_Z", config_json)
 #actuate("ae.025175-DS_S1Q0_01_X", config_json)
 #actuate("ae.025175-TP_S1Q2_01", config_json)
 
 #3 : 상행선 경사 카메라 변위
 #actuate("ae.025175-DI_S1Q0_01_X", config_json)
 #actuate("ae.025175-CM_A1_01_X", config_json)
-#actuate("ae.025175-TI_A1_01_XY", config_json)
+#actuate("ae.025175-TI_A1_01_X", config_json)
+#actuate("ae.025175-TI_A1_01_Y", config_json)
 
 #4 : 하행선 가속도
-#actuate("ae.025176-AC_S1Q2_02_Z", config_json)
+actuate("ae.025176-AC_S1Q2_02_Z", config_json)
 
 #5 : 하행선 가속도 변형률 온도
-#actuate("ae.025176-TP_S1Q2_01", config_json)
+actuate("ae.025176-TP_S1Q2_01", config_json)
 #actuate("ae.025176-AC_S1Q2_01_Z", config_json)
 #actuate("ae.025176-DS_S1Q2_01_X", config_json)
 
