@@ -229,3 +229,71 @@ def savedJson(aename,raw_json, t1_start, t1_msg):
 
     #print("RETURN from savedJson()")
     return 'ok', t1_start, t1_msg
+
+
+def testOneMinuteData(aename, raw_json):
+    global root, ae, memory
+    cmeasure = ae[aename]['config']['cmeasure']
+    save_path = F"{root}/test_data/{aename}"
+    if not os.path.exists(F"{root}/test_data"): os.makedirs(F"{root}/test_data") # 상위 디렉토리의 존재유무 검사
+    if not os.path.exists(save_path): os.makedirs(save_path) # 저장 디렉토리가 없다면 생성
+
+    j = raw_json[aename]
+
+    boardTime = datetime.strptime(j['time'],'%Y-%m-%d %H:%M:%S')
+
+    def elapsed(base):
+        return (datetime.now()-base).total_seconds()
+    mymemory=memory[aename]
+    print(F"{aename} : saving 1 minute data for test...")
+    
+    data_list = list()
+    recent_data = ""
+
+    print(f'boardTime= {boardTime} ')
+    once=False
+    start_time=''
+    for i in range(60, 0,-1): #60에서 시작해서 1까지
+        key = (boardTime - timedelta(seconds=i)).strftime("%Y-%m-%d-%H%M%S")
+        # 가장 최근 데이터를 뽑아낸다, i=0이 정시 boardData 를 처리하기전으로 수정
+
+        if not key in mymemory["file"]:
+            once=True
+            continue
+
+        if once: # partial data 의 경우 첫부분  key가 없을 수 있으며 이때만 시작점을 프린트
+            once=False
+            print(f' partial data. beginning valid key= {key}')
+            
+        if start_time=='': start_time = boardTime - timedelta(seconds=i) # 가장 첫번째 valid data의 시간
+
+        json_data = mymemory["file"][key]
+        if isinstance(json_data['data'], list): data_list.extend(json_data["data"])
+        else: data_list.append(json_data["data"])
+
+    if start_time=='':
+        print(f" failed. no data. sart_time==null")
+        return 'ok'
+
+    if 'json_data' not in locals():
+        print(f"no json_data in locals() ")
+        return 'ok'
+
+    recent_data = json_data  # 마지막 데이타가 가장 최신
+
+    merged_file = { # 최종적으로 rawperiod간의 데이터가 저장될 json의 dict
+        "starttime":start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "endtime":recent_data['time'],
+        "count":len(data_list),
+        "data":data_list
+    }
+
+    file_name = f'{save_path}/{start_time.strftime("%Y%m%d%H%M")}_{aename}.bin'
+
+    # saved file의 이름은 끝나는 시간임 --> 시작시간으로 변경
+    def savefile(merged_file):
+        with open (file_name, "w") as f: json.dump(merged_file, f, indent=4)
+        #print(f'TIMER: saved')
+    #savefile(aename, boardTime, f'{save_path}/{file_name}.bin')
+    print(f'TIMER: savefile +2s')
+    Timer(2, savefile, [merged_file]).start()

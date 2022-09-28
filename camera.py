@@ -12,13 +12,8 @@ import numpy as np
 import requests
 from threading import Timer, Thread
 
-import zipfile
-from os.path import basename
-
-import create
 from conf import ae, root
 
-import zipfile
 from os.path import basename
 
 def sensor_type(aename):

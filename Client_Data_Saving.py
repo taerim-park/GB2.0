@@ -476,6 +476,24 @@ def do_user_command(aename, jcmd):
         os.system("sh COPY.sh")
         os.system("pm2 restart all")
         return
+
+    if cmd in 'teststart':
+        if sensor_type(aename) == "CM":
+            warn_state(F"type CM does not support command : {cmd}")
+        else:
+            print('start test mode saving')
+            schedule_test(aename)
+            ae[aename]['local']['teststart']='Y'
+        return
+
+    if cmd in 'teststop':
+        if sensor_type(aename) == "CM":
+            warn_state(F"type CM does not support command : {cmd}")
+        else:
+            print('stop test mode saving')
+            ae[aename]['local']['teststart']='N'
+        return
+
         
     if cmd == 'inoon':
         cmd2=jcmd['cmd2']
@@ -1080,6 +1098,12 @@ def do_capture():
                 if timesync:
                     print('At 10min time ', end='')
                     do_timesync()
+
+            if ae[aename]['local']['teststart'] == "Y": # 테스트 중이라면 n분 00초인지도 확인한다
+                if sensor_type(aename) == "CM":pass
+                elif schedule[aename]['test'] <= boardTime:
+                    savedData.testOneMinuteData(aename, raw_json)
+                    schedule_test(aename)
         else:
             print(f"skip scheduling with boardTime not ready")
 
@@ -1163,6 +1187,7 @@ def do_tick():
             myserial.modem_reset()
         schedule_ping()
 
+
     global counter
     if counter>100000: counter=300
     mqtt_retry()
@@ -1183,6 +1208,8 @@ def startup():
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
         if sensor_type(aename) == "CM": camera.take_picture_command(boardTime, aename)
         print(f"MAP {aename} --> using Sensor {acc_axis(aename)}")
+        if sensor_type(aename) != "CM" and ae[aename]['local']['teststart'] == "Y":
+            schedule_test(aename)
     os.system("sudo systemctl restart autossh") #초기 autossh start 커맨드
 
 
@@ -1251,6 +1278,15 @@ def schedule_ping():
     t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 02분 정시성확보. state 전송이나 주기적 전송에 영향받지 않도록 함
     schedule["ping"] = t2 + timedelta(hours=1)
     print(f'next internet check schedule at {schedule["ping"]} + 3600')
+
+# void schedule_ping(string aename)
+# teststart가 Y인 경우 시행합니다. 매 n분 0초마다 1분치 데이터를 따로 저장합니다.
+def schedule_test(aename):
+    global schedule
+    t1 = boardTime.strftime('%Y-%m-%d %H:%M:00')
+    t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S') # boardTime에서 초 아래 제거하고 1분 +하여 다가오는 00초 정시성 확보.
+    schedule[aename]["test"] = t2 + timedelta(minutes=1)
+    print(f'next test data save schedule at {schedule[aename]["test"]} + 60')
 
 
 #  첫번째 데이타 수신
