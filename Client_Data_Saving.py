@@ -1422,7 +1422,8 @@ def a_dinfo():
     r=''
     for aename in ae:
         #r+=f'battery: {ae[aename]['state']['battery']}'
-        solar =float(list({ae[aename]['state']['solarchargevolt']})[0])*14.7/100
+        #solar =float(list({ae[aename]['state']['solarchargevolt']})[0])*14.7/100
+        solar =float(list({ae[aename]['state']['solarchargevolt']})[0])
         battery =float(list({ae[aename]['state']['battery']})[0])*4.2/100
         r+=f'External battery: {solar:.2f} V <br>'
         r+=f'Internal battery: {battery:.2f} V <br>'
