@@ -494,6 +494,11 @@ def do_user_command(aename, jcmd):
             ae[aename]['local']['teststart']='N'
         return
 
+    if cmd in 'cntcheck':
+        print("start container check in 2 seconds")
+        Timer(2, make_oneM2M_resource.container_search).start()
+        return
+
         
     if cmd == 'inoon':
         cmd2=jcmd['cmd2']
@@ -1487,5 +1492,6 @@ def a_modem():
 print(f"===== Begin at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 startup()
 RepeatedTimer(0.9, do_tick)
+Timer(2, make_oneM2M_resource.container_search).start()
 
 app.run(host='0.0.0.0', port=8000)
