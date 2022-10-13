@@ -12,6 +12,9 @@ import state
 
 verify_only=False
 
+def sensor_type(aename):
+    return aename.split('-')[1][0:2]
+
 def create_sub(aename):
     global csename, ae
     c=ae[aename]['config']['connect']
@@ -39,10 +42,11 @@ def create_sub(aename):
         print('created m2m:sub', r.json()["m2m:sub"]["rn"])
         if "m2m:dbg" in r.json(): sys.exit(0)
 
-def makeit():
+def makeit(IF_mode):
     global ae, csename
-
     for aename in ae:
+        if IF_mode and sensor_type(aename) != "IF": # IF를 포함한 ae dict의 경우, IF의 AE와 container 외의 리소스는 생성하지 않는다
+            continue
         c=ae[aename]['config']['connect']
         print('Using ', f"{c['cseip']}:{c['cseport']}")
         print('Query CB:')
@@ -65,6 +69,8 @@ def makeit():
     print('Query AE: ')
     aeToMake = list()
     for aename in ae:
+        if IF_mode and sensor_type(aename) != "IF": # IF를 포함한 ae dict의 경우, IF의 AE와 container 외의 리소스는 생성하지 않는다
+            continue
         url = F"http://{c['cseip']}:{c['cseport']}/{csename}/{aename}"
         try:
             r = requests.get(url, headers=h, timeout=10)
@@ -80,6 +86,8 @@ def makeit():
         return
     
     for aename in aeToMake:
+        if IF_mode and sensor_type(aename) != "IF": # IF를 포함한 ae dict의 경우, IF의 AE와 container 외의 리소스는 생성하지 않는다
+            continue
         print(F'Found no AE -->{aename}  Create fresh one')
         c=ae[aename]['config']['connect']
         h={
@@ -108,6 +116,8 @@ def makeit():
     print('\nCreate Container ')
     
     for aename in aeToMake:
+        if IF_mode and sensor_type(aename) != "IF": # IF를 포함한 ae dict의 경우, IF의 AE와 container 외의 리소스는 생성하지 않는다
+            continue
         c=ae[aename]['config']['connect']
         h={
             "Accept": "application/json",
@@ -149,10 +159,12 @@ def makeit():
 
 # void container_search()
 # 현재 dict ae에 지정된 AE가 정말로 모든 컨테이너를 갖추고 있는지 검사합니다. 
-def container_search():
+def container_search(IF_mode):
     global csename, ae
     print("start container searching...")
     for aename in ae:
+        if IF_mode and sensor_type(aename) != "IF": # IF를 포함한 ae dict의 경우, IF의 AE와 container 외의 리소스는 존재여부를 검사하지 않는다
+            continue
         c=ae[aename]['config']['connect']
         h_search={ # con 존재유무 검사할 때 사용하는 헤더
             "Accept": "application/json",
