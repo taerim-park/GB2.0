@@ -68,6 +68,13 @@ doneFirstShoot={}
 def sensor_type(aename):
     return aename.split('-')[1][0:2]
 
+IF_mode = False # ae IF를 이용한 정보 표시용 장비인지를 기록한다. True인 경우 여러가지 동작을 하지 않게 된다.
+
+for aename in ae:
+    if sensor_type(aename)=="IF": # IF를 사용하는 장비인지 검사
+        IF_mode = True
+
+
 '''
 # 다중 데이터의 경우, 어떤 data를 저장할지 결정해야한다
 acc_axis = "z" # x, y, z중 택1
@@ -121,7 +128,7 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 
 
-make_oneM2M_resource.makeit()
+make_oneM2M_resource.makeit(IF_mode)
 print('done any necessary Mobius resource creation')
 
 # dict jsonCreate(dataTyep, timeData, realData)
@@ -158,9 +165,11 @@ def jsonSave(aename, jsonFile):
         if sec>1: print(f'{aename} json cover missing one by adding key={mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len={len(mymemory["file"])}')
         else: 
             rpitime = datetime.now().replace(microsecond=0)
-            if len(mymemory["file"])%60 ==0: print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime} rpi= {rpitime} diff= {(boardTime-rpitime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%Y-%m-%d %H:%M:%S")} state= {schedule[aename]["state"].strftime("%Y-%m-%d %H:%M:%S")})')
+            if len(mymemory["file"])%60 ==0:
+                if not IF_mode:
+                    print(f'{aename} json add {mymemory["head"].strftime("%Y-%m-%d-%H%M%S")} len= {len(mymemory["file"])} board= {boardTime} rpi= {rpitime} diff= {(boardTime-rpitime).total_seconds():.1f}s (next measure= {schedule[aename]["measure"].strftime("%Y-%m-%d %H:%M:%S")} state= {schedule[aename]["state"].strftime("%Y-%m-%d %H:%M:%S")})')
         sec -= 1
-    
+
     while len(mymemory["file"])>660:
         try:
             del mymemory["file"][mymemory["tail"].strftime('%Y-%m-%d-%H%M%S')]
@@ -295,6 +304,13 @@ def do_user_command(aename, jcmd):
     if cmd in {'realstart'}:
         if sensor_type(aename) == "CM":
             warn_state(F"type CM does not support command : {cmd}")
+        
+        elif sensor_type(aename) == "IF":
+            print("AE IF -> start mqtt real tx (entire AE)")
+            for _aename in ae:
+                if sensor_type(_aename) != "IF":
+                    ae[_aename]['local']['realstart']='Y' # 모든 AE의 realtime 전송 시작
+            
         else:
             print('start mqtt real tx')
             ae[aename]['local']['realstart']='Y'
@@ -303,6 +319,13 @@ def do_user_command(aename, jcmd):
     if cmd in {'realstop'}:
         if sensor_type(aename) == "CM":
             warn_state(F"type CM does not support command : {cmd}")
+
+        elif sensor_type(aename) == "IF":
+            print("AE IF -> stop mqtt real tx (entire AE)")
+            for _aename in ae:
+                if sensor_type(_aename) != "IF":
+                    ae[_aename]['local']['realstart']='N' # 모든 AE의 realtime 전송 중지
+            
         else:
             print('stop mqtt real tx')
             ae[aename]['local']['realstart']='N'
@@ -316,12 +339,18 @@ def do_user_command(aename, jcmd):
         return
 
     if cmd in {'measurestart'}:
+        if sensor_type(aename) == "IF":
+            warn_state(F"type IF does not support command : {cmd}") # AE IF는 측정을 시작할 수 없음
+            return
         ae[aename]['config']['cmeasure']['measurestate']='measuring'
         create.ci(aename, 'config', 'cmeasure')
         save_conf(aename)
         return
 
     if cmd in {'measurestop'}:
+        if sensor_type(aename) == "IF":
+            warn_state(F"type IF does not support command : {cmd}")
+            return
         ae[aename]['config']['cmeasure']['measurestate']='stopped'
         create.ci(aename, 'config', 'cmeasure')
         save_conf(aename)
@@ -331,8 +360,8 @@ def do_user_command(aename, jcmd):
 
     if cmd in {'settrigger', 'setmeasure'}: # 220620갱신 : 본문에 바로 명령어가 작성된다는 점에 주의
         if 'settrigger' in cmd:
-            if sensor_type(aename) == "CM": # 카메라는 trigger 설정을 지원하지 않음
-                warn_state(F"type CM does not support command : {cmd}")
+            if sensor_type(aename) == "CM" or sensor_type(aename) == "IF": # CM과 IF는 trigger를 지원하지 않는다
+                warn_state(F"type {sensor_type(aename)} does not support command : {cmd}")
                 return
             
             command_key = 'settrigger'
@@ -478,7 +507,7 @@ def do_user_command(aename, jcmd):
         return
 
     if cmd in 'teststart':
-        if sensor_type(aename) == "CM":
+        if sensor_type(aename) == "CM" or sensor_type(aename) == "IF":
             warn_state(F"type CM does not support command : {cmd}")
         else:
             print('start test mode saving')
@@ -487,7 +516,7 @@ def do_user_command(aename, jcmd):
         return
 
     if cmd in 'teststop':
-        if sensor_type(aename) == "CM":
+        if sensor_type(aename) == "CM" or sensor_type(aename) == "IF":
             warn_state(F"type CM does not support command : {cmd}")
         else:
             print('stop test mode saving')
@@ -496,7 +525,7 @@ def do_user_command(aename, jcmd):
 
     if cmd in 'cntcheck':
         print("start container check in 2 seconds")
-        Timer(2, make_oneM2M_resource.container_search).start()
+        Timer(2, make_oneM2M_resource.container_search, [IF_mode]).start()
         return
 
         
@@ -663,7 +692,7 @@ def do_config():
                 'DS':{'use':'N','st1high':0,'st1low':0, 'offset':0},
                 'TP':{'use':'N','st1high':0,'st1low':0, 'offset':0}}
     for aename in ae:
-        if sensor_type(aename) != 'CM':
+        if sensor_type(aename) != 'CM' and sensor_type(aename) != 'IF':
             cmeasure = ae[aename]['config']['cmeasure']
             if 'offset' in cmeasure:
                 setting[sensor_type(aename)]['offset'] = cmeasure['offset']
@@ -1081,34 +1110,39 @@ def do_capture():
                 print(f'GOT 10s minutes board= {boardTime} rpi= {datetime.now().strftime("%H:%M:%S")} {m10[aename]}0')
     
                 timesync=False
-    
-                if schedule[aename]['measure'] <= boardTime:
-                    # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급  
-                    if stype != 'CM': # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
-                        stat, tx_start, tx_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
-                        timesync=True
-                    else:
-                        tx_start, tx_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
-                    schedule_measureperiod(aename)
-                else:
-                    nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
-                    print(f"no work now.  time to next measure= {nsec/60:.1f}min.")
-                    if nsec>cmeasure['measureperiod']:
-                        schedule_measureperiod(aename)
-                        nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
-                        print(f"fixed wrong schedule time.  new time to next measure= {nsec/60:.1f}min.")
-                    savedData.remove_old_data(aename, boardTime)
-    
-                # 매 데이타 처리후에만 sync 실시
-                if timesync:
-                    print('At 10min time ', end='')
-                    do_timesync()
 
-            if ae[aename]['local']['teststart'] == "Y": # 테스트 중이라면 n분 00초인지도 확인한다
-                if sensor_type(aename) == "CM":pass
-                elif schedule[aename]['test'] <= boardTime:
-                    savedData.testOneMinuteData(aename, raw_json)
-                    schedule_test(aename)
+                if IF_mode:
+                    if sensor_type(aename) != "IF":
+                        savedData.remove_old_data(aename, boardTime)
+                        # IF를 포함하는 장비라면 10분 정시에 데이터 청소만 실시한다
+                else:
+                    if schedule[aename]['measure'] <= boardTime:
+                        # savedJaon() 에서 정적데이타는 아직 hold하고 있는 정시데이타를 보내야 한다. 그래서 j 공급
+                        if stype != 'CM' : # 카메라는 json Save를 하지 않는다. 대신 사진을 전송함
+                            stat, tx_start, tx_msg = savedData.savedJson(aename, raw_json, t1_start, t1_msg)
+                            timesync=True
+                        else:
+                            tx_start, tx_msg = camera.take_picture(boardTime, aename, t1_start, t1_msg) # 사진을 찍어 올린다
+                        schedule_measureperiod(aename)
+                    else:
+                        nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
+                        print(f"no work now.  time to next measure= {nsec/60:.1f}min.")
+                        if nsec>cmeasure['measureperiod']:
+                            schedule_measureperiod(aename)
+                            nsec = (schedule[aename]['measure'] - boardTime).total_seconds()
+                            print(f"fixed wrong schedule time.  new time to next measure= {nsec/60:.1f}min.")
+                        savedData.remove_old_data(aename, boardTime)
+        
+                    # 매 데이타 처리후에만 sync 실시
+                    if timesync:
+                        print('At 10min time ', end='')
+                        do_timesync()
+
+                    if ae[aename]['local']['teststart'] == "Y": # 테스트 중이라면 n분 00초인지도 확인한다
+                        if sensor_type(aename) == "CM":pass
+                        elif schedule[aename]['test'] <= boardTime:
+                            savedData.testOneMinuteData(aename, raw_json)
+                            schedule_test(aename)
         else:
             print(f"skip scheduling with boardTime not ready")
 
@@ -1121,7 +1155,7 @@ def do_capture():
         # 내 device의 ae에 지정된 sensor type 정보만을 전송
 
         # stype 은 'AC' 와 같은 부분
-        if stype == 'CM' : continue # 카메라는 mqtt 전송을 시행하지 않음
+        if stype == 'CM' or stype == 'IF' : continue # 카메라와 IF는 mqtt 전송을 시행하지 않음
         #print(f"mqtt {aename} {stype} {local['realstart']}")
         if local['realstart']=='Y':  # mqtt_realtime is controlled from remote user
             payload = raw_json[aename]["data"]
@@ -1136,7 +1170,7 @@ def do_capture():
         # 센서별 json file 생성
         # 내 ae에 지정된 sensor type정보만을 저장
 
-        if stype == 'CM' : continue # 카메라는 json 전송을 시행하지 않음
+        if stype == 'CM' or stype == 'IF' : continue # 카메라는 json 전송을 시행하지 않음
         jsonSave(aename, raw_json[aename])
 
         #print(raw_json[aename]["time"])
@@ -1156,7 +1190,8 @@ def do_capture():
             ae[aename]['data']['dmeasure'] = dmeasure
             #Timer(delay, create.ci, [aename, 'data', 'dmeasure']).start()
             #print(f" create data/dmeasure ci for {aename} to demonstrate communication success {doneFirstShoot[aename]}")
-            create.ci(aename, 'data', 'dmeasure')
+            if not IF_mode:
+                create.ci(aename, 'data', 'dmeasure')
 
         t1_msg += f' - doneSaving - {elapsed(t1_start):.1f}s' 
 
@@ -1206,14 +1241,17 @@ def startup():
     print('create ci at boot')
     for aename in ae:
         #print(f"AE= {aename} RPI CPU Serial= {ae[aename]['local']['serial']}")
+        if IF_mode and sensor_type(aename) != "IF":
+            continue
         ae[aename]['info']['manufacture']['fwver']=VERSION
         create.allci(aename, {'config','info'}) 
         do_status()
         ae[aename]['state']["abflag"]="N"
         state.report(aename) # boot이후 state를 전송해달라는 요구사항에 맞춤
         if sensor_type(aename) == "CM": camera.take_picture_command(boardTime, aename)
-        print(f"MAP {aename} --> using Sensor {acc_axis(aename)}")
-        if sensor_type(aename) != "CM" and ae[aename]['local']['teststart'] == "Y":
+        if sensor_type(aename) != "IF":
+             print(f"MAP {aename} --> using Sensor {acc_axis(aename)}")
+        if sensor_type(aename) != "CM" and sensor_type(aename) != "IF" and ae[aename]['local']['teststart'] == "Y":
             schedule_test(aename)
     os.system("sudo systemctl restart autossh") #초기 autossh start 커맨드
 
@@ -1222,6 +1260,8 @@ def startup():
 def schedule_measureperiod(aename1):
     global ae, schedule
     for aename in ae:
+        if sensor_type(aename) == "IF": # AE type IF는 측정을 전혀 시행하지 않음
+            continue
         if aename1 != "" and aename != aename1: continue
 
         cmeasure=ae[aename]['config']['cmeasure']
@@ -1248,6 +1288,8 @@ def schedule_measureperiod(aename1):
 def schedule_stateperiod(aename1):
     global ae, schedule
     for aename in ae:
+        if sensor_type(aename) == "IF": # AE type IF는 측정을 전혀 시행하지 않음
+            continue
         if aename1 != "" and aename != aename1: continue
 
         cmeasure=ae[aename]['config']['cmeasure']
@@ -1297,12 +1339,15 @@ def schedule_test(aename):
 #  첫번째 데이타 수신
 def schedule_first():
     for aename in ae:
+        if IF_mode and sensor_type(aename) != "IF":
+            continue
         cmeasure=ae[aename]['config']['cmeasure']
         #schedule_measureperiod(aename)   첫번재 10분 정시에 1회만
         t1 = boardTime.strftime('%Y-%m-%d %H:%M')[:-1]+'0:00'
         t2 = datetime.strptime(t1, '%Y-%m-%d %H:%M:%S')   # boardTime에서 분아래 제거하고 1시간 + 하여 다가오는 00분 정시성확보
-        schedule[aename]['measure'] = t2+ timedelta(minutes=10)
-        print(f'next measure schedule[{aename}] at 10s {schedule[aename]["measure"]} +{cmeasure["measureperiod"]}')
+        if not IF_mode:
+            schedule[aename]['measure'] = t2+ timedelta(minutes=10)
+            print(f'next measure schedule[{aename}] at 10s {schedule[aename]["measure"]} +{cmeasure["measureperiod"]}')
         schedule_stateperiod(aename)    # 정상적 다음 일정
         schedule_ping() # ping 스케줄링도 함께 시행
         '''
@@ -1315,18 +1360,26 @@ def schedule_first():
 for aename in ae:
     memory[aename]={"file":{}, "head":"","tail":""}
     trigger_activated[aename]=-1
-    schedule[aename]={}
-    ae[aename]['local']['upTime']=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if IF_mode:
+        if sensor_type(aename) == "IF": # IF가 포함된 AE dict의 경우, IF만 schedule을 가진다
+            schedule[aename]={}
+            ae[aename]['local']['upTime']=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            pass
+    else:
+        schedule[aename]={} 
+        ae[aename]['local']['upTime']=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 @app.route('/')
 def a_status():
     """
     r='<H3>AE 설정 확인</H3>'
-    for aename in ae: r+= f"<li><a href=/ae?aename={aename}>{aename}</a>"
+    for aename in ae:
+        if sensor_type(aename) != "IF" : r+= f"<li><a href=/ae?aename={aename}>{aename}</a>"
     r+='<H3>최종 데이타 확인</H3>'
     for aename in ae: 
         print(aename, sensor_type(aename))
-        if sensor_type(aename) != "CM": r+= f"<li><a href=/data?aename={aename}>{aename}</a>"
+        if sensor_type(aename) != "CM" and sensor_type(aename) != "IF": r+= f"<li><a href=/data?aename={aename}>{aename}</a>"
     r+='<H3>RSSI 확인</H3>'
     r+= f"<li><a href=/rssi>rssi 확인</a>"
     r+='<H3>카메라 영상  확인</H3>'
@@ -1493,6 +1546,6 @@ def a_modem():
 print(f"===== Begin at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 startup()
 RepeatedTimer(0.9, do_tick)
-Timer(2, make_oneM2M_resource.container_search).start()
+Timer(2, make_oneM2M_resource.container_search, [IF_mode]).start()
 
 app.run(host='0.0.0.0', port=8000)
