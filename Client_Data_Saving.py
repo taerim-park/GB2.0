@@ -2,7 +2,7 @@
 # 소켓 서버로 'CAPTURE' 명령어를 1초에 1번 보내, 센서 데이터값을 받습니다.
 # 받은 데이터를 센서 별로 분리해 각각 다른 디렉토리에 저장합니다.
 # 현재 mqtt 전송도 이 프로그램에서 담당하고 있습니다.
-VERSION='20220921_V1.54'
+VERSION='20221019_V1.55'
 print('\n===========')
 print(f'Verion {VERSION}')
 
@@ -116,7 +116,10 @@ def dis_channel(aename):
     else:
         print(f'Format error in aename {aename}')
         print(f'DI type sensor supports X or Y only')
-        os._exit(0)
+        print('set DI type to x(default)...')
+        #os._exit(0)
+        return 'ch4'
+        
 
 
 def sigint_handler(signal, frame):
@@ -1216,16 +1219,17 @@ def do_tick():
             state.report(aename)
             schedule_stateperiod(aename)
 
-    if schedule["ping"] <= boardTime:
-        addr = 'google.com'
-        cmdstring = F'ping -c1 {addr} 1>/dev/null'
-        res = os.system(cmdstring)
-        if res == 0:
-            print("ICMP : responding well.")
-        else:
-            print("ICMP : not responding. do modem reset...")
-            myserial.modem_reset()
-        schedule_ping()
+    if "ping" in schedule:
+        if schedule["ping"] <= boardTime:
+            addr = 'google.com'
+            cmdstring = F'ping -c1 {addr} 1>/dev/null'
+            res = os.system(cmdstring)
+            if res == 0:
+                print("ICMP : responding well.")
+            else:
+                print("ICMP : not responding. do modem reset...")
+                myserial.modem_reset()
+            schedule_ping()
 
 
     global counter
