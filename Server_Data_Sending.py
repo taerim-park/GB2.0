@@ -41,12 +41,13 @@ GPIO.output(25, True)
 GPIO.output(5,  False)
 
 
-
+'''
 def callback_i1(channel):
     os.system("sudo shutdown now")
     #GPIO.output(5,  False)
 
 GPIO.add_event_detect(23, GPIO.FALLING, callback=callback_i1)
+'''
 
 app= Flask(__name__)
 log = logging.getLogger('werkzeug')
