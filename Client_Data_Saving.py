@@ -107,6 +107,34 @@ def acc_axis(aename):
 def deg_axis(aename):
     return acc_axis(aename)
 
+# double TI_convert(str data_axis, str AE_axis, double value)
+# 실제로 데이터를 받아오는 축 data_axis, AE에 표기되어있는 축 AE_axis를 기반으로 TI 데이터 value의 변환을 시행한다.
+# 만일 AC_X라는 이름의 AE가 있는데, 이것의 local axis가 -z로 설정되어있다면, data_axis는 -z, AE_axis는 X이다. 또한 value는 z축의 데이터이다.
+def TI_convert(data_axis, AE_axis, value):
+    if data_axis == 'x': # 1번 case : 데이터의 원 출처가 x축일 때
+        if AE_axis == 'X' : return value # 변환할 바가 없다면 그대로 출력
+        elif AE_axis == 'Y' : return -1*value # Y축으로 보여야 한다면 부호를 바꾼다
+        elif AE_axis == 'Z': # Z축으로 보여야 한다면 또다른 연산을 거쳐야 한다
+            if value == 0 or value > 0 : return value - 90
+            elif value < 0 : return value + 90
+
+    elif data_axis == 'y': # 2번 case : 데이터의 원 출처가 y축일 때
+        if AE_axis == 'X' : return -1*value # X축으로 보여야 한다면 부호를 바꾼다
+        elif AE_axis == 'Y' : return value # 변환할 바가 없다면 그대로 출력
+        elif AE_axis == 'Z': # Z축으로 보여야 한다면 또다른 연산을 거쳐야 한다
+            if value == 0 or value > 0 : return 90 - value
+            elif value < 0 : return -1 * (value + 90)
+
+    elif data_axis == 'z': # 3번 case : 데이터의 원 출처가 z축일 때
+        if AE_axis == 'X' :
+            if value == 0 or value > 0 : return value - 90
+            elif value < 0 : return value + 90            
+        elif AE_axis == 'Y' :
+            if value == 0 or value > 0 : return 90 - value
+            elif value < 0 : return -1 * (value + 90)
+        elif AE_axis == 'Z': return value # 변환할 바가 없다면 그대로 출력
+
+
 def str_axis(aename):
     return acc_axis(aename)
 
@@ -864,8 +892,11 @@ def do_capture():
             captured_data[aename] = j[stype][dis_channel(aename)] + capture_offset
         elif stype == "TP":
             captured_data[aename] = j[stype] + capture_offset
-        elif stype == "TI":
-            captured_data[aename] = round((j[stype][deg_axis(aename)] + capture_offset) * capture_invert , 4)
+        elif stype == "TI": # 여기서 TI 축 보정을 시행해야할듯함
+            data_axis = deg_axis(aename)
+            AE_axis = aename[-1]
+            value = j[stype][deg_axis(aename)]
+            captured_data[aename] = round((TI_convert(data_axis, AE_axis, value) + capture_offset) * capture_invert , 4)
 
     # start of trigger
     for aename in ae: 

@@ -22,7 +22,7 @@ install= {"date":"2022-04-25","place":"금남2교(하)","placecode":F"{bridge}",
 #connect={"cseip":host,"cseport":7579,"csename":csename,"cseid":csename,"mqttip":host,"mqttport":port,"uploadip":uploadhost,"uploadport":uploadport}
 connect={"cseip":host,"cseport":7579,"csename":csename,"cseid":csename,"mqttip":host,"mqttport":port,"uploadip":uploadhost,"uploadport":uploadport}
 
-make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
+#make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
 #ae[F'ae.{bridge}-AC_S1M_01_Y']['local']['axis']='z'
 #make_ae(F'ae.{bridge}-AC_S1M_01_Y', csename, install, connect)
 #make_ae(F'ae.{bridge}-AC_S1M_01_Z', csename, install, connect)
@@ -33,9 +33,13 @@ make_ae(F'ae.{bridge}-AC_S1M_01_X', csename, install, connect)
 #make_ae(F'ae.{bridge}-DI_S1M_01_X', csename, install, connect)
 #make_ae(F'ae.{bridge}-DI_S1M_01_Y', csename, install, connect)
 #make_ae(F'ae.{bridge}-TP_S1M_01_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
-#make_ae(F'ae.{bridge}-TI_S1M_01_Y', csename, install, connect)
-#make_ae(F'ae.{bridge}-TI_S1M_01_Z', csename, install, connect)
+
+make_ae(F'ae.{bridge}-TI_S1M_01_X', csename, install, connect)
+make_ae(F'ae.{bridge}-TI_S1M_01_Y', csename, install, connect)
+make_ae(F'ae.{bridge}-TI_S1M_01_Z', csename, install, connect)
+ae[F'ae.{bridge}-TI_S1M_01_X']['local']['axis']='z'
+ae[F'ae.{bridge}-TI_S1M_01_Z']['local']['axis']='-x'
+
 #make_ae(F'ae.{bridge}-CM_S1M_01_X', csename, install, connect)
 
 root='/home/pi/GB'

@@ -30,7 +30,7 @@ def do_it(id, cmd):
     print(f"{id} {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} job= {cmd}")
     output = subprocess.check_output(cmd, shell=True).decode('utf8')
     print(f"{id} result= {len(output)}B {str(output[:32])}...")
-    r=requests.get(f'http://ec2-54-180-119-22.ap-northeast-2.compute.amazonaws.com:8000/output?key={KEY}&p={p}&output={output}')
+    r=requests.get(f'http://ec2-43-201-67-234.ap-northeast-2.compute.amazonaws.com:8000/output?key={KEY}&p={p}&output={output}')
     if not r.status_code == 200:
         print(f"{id} got {r.status_code}")
         return
@@ -38,7 +38,7 @@ def do_it(id, cmd):
 
 def do_tick():
     try:
-        r=requests.get(f'http://ec2-54-180-119-22.ap-northeast-2.compute.amazonaws.com:8000/heartbeat?key={KEY}&p={p}')
+        r=requests.get(f'http://ec2-43-201-67-234.ap-northeast-2.compute.amazonaws.com:8000/heartbeat?key={KEY}&p={p}')
         if not r.status_code == 200:
             print(f"got {r.status_code}")
             return
