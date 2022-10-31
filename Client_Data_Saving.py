@@ -858,6 +858,10 @@ def do_capture():
     global counter
     if counter<180:
         print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {rpiTime} {(boardTime-rpiTime).total_seconds():.1f}s")
+        if (boardTime-rpiTime).total_seconds() <= -50 or (boardTime-rpiTime).total_seconds() >= 50 : # 두 Time이 
+            print("COUNTER ERROR : too much gap between boardTime and rpiTime")
+            print("restart system...")
+            os.system("pm2 restart all")
     if counter==180:
         print(f"print per-second-logs for first 3 minutes")
     counter+=1
@@ -1470,7 +1474,12 @@ def a_data():
 
     r0=f"<H3>{aename}</H3>"
 
-    mymemory = memory[aename]
+    try:
+        mymemory = memory[aename]
+    except:
+        r = "key error"
+        return r
+
     keys = sorted(mymemory['file'].keys())
     X=[]
     Y=[]

@@ -33,7 +33,7 @@ def actuate(aename, cmd):
     print(url, json.dumps(r.json()))
 
 config_json = {
-    "cmd":"realstart"
+    "cmd":"autossh"
 }
 '''
     "cmd":"fwupdate",
@@ -43,9 +43,9 @@ config_json = {
     "path":"/fwupdate/20220923_105943.BIN"
 
 '''
-actuate("ae.T0138b-TI_S1M_01_X", config_json)
-actuate("ae.T0138b-TI_S1M_01_Y", config_json)
-actuate("ae.T0138b-TI_S1M_01_Z", config_json)
+#actuate("ae.T0262b-AC_S1M_01_X", config_json)
+#actuate("ae.T0199b-TI_S1M_01_Y", config_json)
+#actuate("ae.T0257b-TI_S1M_01_Z", config_json)
 #actuate("ae.T0250b-AC_S1M_01_X", config_json)
 #actuate("ae.T0216b-AC_S1M_01_X", config_json)
 #actuate("ae.002520-AC_S2Q2_02_Z", config_json)
