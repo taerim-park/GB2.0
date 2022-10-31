@@ -858,11 +858,10 @@ def do_capture():
     global counter
     if counter<180:
         print(f"{counter} boardTime@capture= boardTime= {boardTime} rpiTime= {rpiTime} {(boardTime-rpiTime).total_seconds():.1f}s")
-        if (boardTime-rpiTime).total_seconds() <= - 50 :
+        if (boardTime-rpiTime).total_seconds() <= -50 or (boardTime-rpiTime).total_seconds() >= 50 : # 두 Time이 
             print("COUNTER ERROR : too much gap between boardTime and rpiTime")
             print("restart system...")
             os.system("pm2 restart all")
-            sys.exit(1)
     if counter==180:
         print(f"print per-second-logs for first 3 minutes")
     counter+=1
