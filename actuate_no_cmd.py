@@ -40,11 +40,11 @@ config_json = {
     "protocol":"HTTP",
     "ip":host,
     "port":2883,
-    "path":"/fwupdate/20220923_105943.BIN"
+    "path":"/fwupdate/20221028_151642.BIN"
 
 '''
-#actuate("ae.T0262b-AC_S1M_01_X", config_json)
-#actuate("ae.T0199b-TI_S1M_01_Y", config_json)
+actuate("ae.T0276a-TI_S1M_01_X", config_json)
+actuate("ae.T0252b-TI_S1M_01_X", config_json)
 #actuate("ae.T0257b-TI_S1M_01_Z", config_json)
 #actuate("ae.T0250b-AC_S1M_01_X", config_json)
 #actuate("ae.T0216b-AC_S1M_01_X", config_json)

@@ -413,13 +413,36 @@ def do_user_command(aename, jcmd):
                 warn_state("ctrigger->mode must be 1 or 2 or 3 or 4")
                 return
 
+            elif jcmd["mode"] in {2, 3, 4} and "st1low" not in ae[aename]["config"]["ctrigger"] and "st1low" not in jcmd: #하한치 없이 하한 trigger를 설정하려 한 경우
+                warn_state(F"trigger mode {jcmd['mode']} use st1low - please put st1low value")
+                return
+
+            elif jcmd["mode"] in {1, 3, 4} and "st1high" not in ae[aename]["config"]["ctrigger"] and "st1high" not in jcmd: #상한치 없이 하한 trigger를 설정하려 한 경우
+                warn_state(F"trigger mode {jcmd['mode']} use st1high - please put st1high value")
+                return
+
+            elif sensor_type(aename) == "AC" and jcmd["mode"] in {2, 3, 4}:
+                warn_state(F"AE type AC do not support such trigger mode : {jcmd['mode']}")
+                return
+
+            elif jcmd["mode"] == 1 and "st1low" in ae[aename]["config"]["ctrigger"]: # 상한 모드는 하한값을 사용하지 않기 때문에 삭제
+                del ae[aename]["config"]["ctrigger"]["st1low"]
+
+            elif jcmd["mode"] == 2 and "st1high" in ae[aename]["config"]["ctrigger"]: # 하한 모드는 상한값을 사용하지 않기 때문에 삭제
+                del ae[aename]["config"]["ctrigger"]["st1high"]
+            
+            # 221031 추가 : 규약 테스트 내용에 따라 AC의 경우 상한(1) 외의 설정은 지원하지 않도록 변경해야 함
+            # 또한, 트리거 설정을 상한으로 하는 경우, cin 전송시 st1low를 삭제할 필요 있음       
+
         #cmeasure 명령어의 키워드 유효성 검사
-        k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min', 'st2max', 'st2min', 'st3max', 'st3min', 'st4max', 'st4min', 'st5max', 'st5min', 'st6max', 'st6min', 'st7max', 'st7min', 'st8max', 'st8min', 'st9max', 'st9min', 'st10max', 'st10min','formula', 'samplerate'}
+        k1=set(jcmd) - {'sensitivity','offset','measureperiod','stateperiod', 'rawperiod', 'usefft', 'st1max', 'st1min','formula', 'samplerate'}
         if command_key == 'setmeasure' and len(k1)>0:
             m="Invalid key in setmeasure command: "
             for x in k1: m += f" {x}"
             warn_state(m)
             return
+            #221031 추가 : st2max/min~st10max/min을 입력받을 경우 그것도 오류로 치도록 수정해야 함
+            #
 
         if 'measureperiod' in jcmd: 
             if not isinstance(jcmd["measureperiod"],int):
@@ -432,6 +455,8 @@ def do_user_command(aename, jcmd):
             elif jcmd["measureperiod"]%600 != 0:
                 warn_state(f"measureperiod must be multiples of 600. modified to {int(jcmd[x]/600)*600} and accepted")
                 jcmd['measureperiod']= int(jcmd[x]/600)*600
+            ae[aename]['config']['cmeasure']['rawperiod'] = jcmd['measureperiod'] / 60 #측정 주기 설정 이후 rawperiod도 변경해준다
+            
         
         isTypeWrong = False
         TypeWrongMessage = "type error : "
@@ -509,10 +534,24 @@ def do_user_command(aename, jcmd):
         if isTypeWrong:
             warn_state(TypeWrongMessage)
             return
+        print("change connect information of all AE") # connect 정보는 모든 AE가 공유함
         for x in jcmd: # type 검사에 성공했다면 설정값 입력
-            ae[aename]['config']["connect"][x]=jcmd[x]
-        create.ci(aename, 'config', 'connect')
-        save_conf(aename)
+            for _aename in ae:
+                ae[_aename]['config']["connect"][x]=jcmd[x]
+        #create.ci(aename, 'config', 'connect')
+        '''
+        if "mqttip" in jcmd :
+            print("change connect information of all AE")
+            for aename in ae:
+                ae[aename]['config']["connect"]["mqttip"] = jcmd["mqttip"]
+        if "mqttport" in jcmd:
+            print("change connect information of all AE")
+            for aename in ae:
+                ae[aename]['config']["connect"]["mqttport"] = jcmd["mqttport"]
+        '''
+        save_conf(aename) # 변경 완료 후 pm2 restart
+        print("restart system...")
+        os.system("pm2 restart all")
         return
 
     if cmd == 'takepicture':
@@ -613,6 +652,11 @@ def got_callback(topic, msg):
         #print(' ==> not for me', topic, msg[:20],'...')
         pass
 
+for aename in ae:
+    broker = ae[aename]['config']["connect"]["mqttip"] # mqtt ip는 공통으로 사용하기 때문에 아무 ae에 등록되어있는 mqtt ip를 등록한다
+    mqttport = ae[aename]['config']["connect"]["mqttport"]
+    break
+
 def connect_mqtt():
     global mqttc, mqttc_failed_at
     def on_connect(client, userdata, flags, rc):
@@ -639,7 +683,7 @@ def connect_mqtt():
     mqttc.on_disconnect = on_disconnect
     mqttc.on_message = on_message
     try:
-        mqttc.connect(broker, port)
+        mqttc.connect(broker, mqttport)
     except:
         return ""
     return mqttc
@@ -1046,8 +1090,10 @@ def do_capture():
     
             dtrigger['time']=boardTime.strftime("%Y-%m-%d %H:%M:%S") # 트리거 신호가 발생한 당시의 시각
             dtrigger['mode']=ctrigger['mode']
-            dtrigger['sthigh']=ctrigger['st1high']
-            dtrigger['stlow']=ctrigger['st1low']
+            if ctrigger['mode'] in {1, 3, 4}:
+                dtrigger['sthigh']=ctrigger['st1high']
+            if ctrigger['mode'] in {2, 3, 4}:
+                dtrigger['stlow']=ctrigger['st1low']
             dtrigger['step']=1
             dtrigger['samplerate']=cmeasure['samplerate']
     
@@ -1075,34 +1121,6 @@ def do_capture():
 
         # skip if not measuring
         if cmeasure['measurestate'] != 'measuring': continue
-
-        '''
-        offset_dict = {
-            "AC":0,
-            "DI":0,
-            "TP":0,
-            "TI":0,
-            "DS":0
-        }
-
-        if stype == 'TP' and 'offset' in cmeasure: offset_dict["TP"] = cmeasure['offset']
-        elif stype == 'DI' and 'offset' in cmeasure: offset_dict["DI"] = cmeasure['offset']
-        elif stype == "AC" and 'offset' in cmeasure: offset_dict["AC"] = cmeasure['offset']
-        elif stype == "TI" and 'offset' in cmeasure: offset_dict["TI"] = cmeasure['offset']
-        elif stype == "DS" and 'offset' in cmeasure: offset_dict["DS"] = cmeasure['offset']
-
-        if stype=='AC':
-            acc_list = list()
-            for i in range(len(j["AC"])): 
-                acc_value = round(j["AC"][i][acc_axis(aename)] + offset_dict["AC"],2)*invertC(aename)
-                acc_list.append(acc_value)
-        elif stype=='DS':
-            str_list = list()
-            for i in range(len(j["DS"])):
-                str_value = round(j["DS"][i][str_axis(aename)] + offset_dict["DS"],2)*invertC(aename)
-                str_list.append(str_value)
-
-        '''
         
         #samplerate에 따라 파일에 저장되는 data 조정
         #현재 가속도 센서와 변형률 센서에 적용중
